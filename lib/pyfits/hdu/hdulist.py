@@ -1,4 +1,5 @@
 import gzip
+import logging
 import os
 import signal
 import sys
@@ -22,6 +23,9 @@ from pyfits.util import (Extendable, _is_int, _tmp_name, _with_extensions,
                          _pad_length, BLOCK_SIZE, isfile, fileobj_name,
                          fileobj_closed, fileobj_mode)
 from pyfits.verify import _Verify, _ErrList
+
+
+log = logging.getLogger(__name__)
 
 
 @_with_extensions
@@ -257,7 +261,7 @@ class HDUList(list, _Verify):
                 # check in the case there is extra space after the last HDU or
                 # corrupted HDU
                 except ValueError, err:
-                    warnings.warn(
+                    log.warn(
                         'Required keywords missing when trying to read '
                         'HDU #%d (note: PyFITS uses zero-based indexing.\n'
                         '          %s\n          There may be extra '
@@ -577,8 +581,8 @@ class HDUList(list, _Verify):
             old_handler = signal.signal(signal.SIGINT, new_sigint)
 
         if self.__file.mode not in ('append', 'update', 'ostream'):
-            warnings.warn("Flush for '%s' mode is not supported."
-                          % self.__file.mode)
+            log.error("Flush for '%s' mode is not supported." %
+                      self.__file.mode)
             return
 
         self.verify(option=output_verify)
@@ -798,7 +802,7 @@ class HDUList(list, _Verify):
         """
 
         if (len(self) == 0):
-            warnings.warn("There is nothing to write.")
+            log.warn("There is nothing to write.")
             return
 
         if output_verify == 'warn':
@@ -815,7 +819,7 @@ class HDUList(list, _Verify):
             isinstance(fileobj, (basestring, gzip.GzipFile))):
             if (os.path.exists(filename) and os.path.getsize(filename) != 0):
                 if clobber:
-                    warnings.warn("Overwriting existing file '%s'." % filename)
+                    log.warn("Overwriting existing file '%s'." % filename)
                     if not closed:
                         fileobj.close()
                     os.remove(filename)
@@ -823,7 +827,7 @@ class HDUList(list, _Verify):
                     raise IOError("File '%s' already exists." % filename)
         elif (hasattr(fileobj, 'len') and fileobj.len > 0):
             if clobber:
-                warnings.warn("Overwriting existing file '%s'." % filename)
+                log.warn("Overwriting existing file '%s'." % filename)
                 name.truncate(0)
             else:
                 raise IOError("File '%s' already exists." % filename)

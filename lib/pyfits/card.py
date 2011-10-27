@@ -1,7 +1,7 @@
+import logging
 import re
 import string
 import sys
-import warnings
 
 import numpy as np
 
@@ -12,6 +12,9 @@ from pyfits.verify import _Verify, _ErrList
 __all__ = ['Card', 'CardList', 'RecordValuedKeywordCard', 'create_card',
            'create_card_from_string', 'upper_key', 'createCard',
            'createCardFromString', 'upperKey', 'Undefined']
+
+
+log = logging.getLogger(__name__)
 
 
 FIX_FP_TABLE = maketrans('de', 'DE')
@@ -324,7 +327,7 @@ class Card(_Verify):
                 self.__class__ = _ContinueCard
                 output = self._breakup_strings()
             else:
-                warnings.warn('Card is too long, comment is truncated.')
+                log.warn('Card is too long, comment is truncated.')
                 output = output[:Card.length]
 
         return output

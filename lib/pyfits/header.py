@@ -1,5 +1,5 @@
+import logging
 import os
-import warnings
 
 try:
     from collections import MutableMapping as __HEADERBASE
@@ -12,6 +12,9 @@ from pyfits.card import (Card, CardList, RecordValuedKeywordCard,
                          _ContinueCard, _HierarchCard, create_card,
                          create_card_from_string, upper_key, _pad)
 from pyfits.util import BLOCK_SIZE, deprecated, _pad_length
+
+
+log = logging.getLogger(__name__)
 
 
 class Header(__HEADERBASE):
@@ -424,10 +427,10 @@ class Header(__HEADERBASE):
         if isinstance(fileobj, basestring):
             if (os.path.exists(fileobj) and os.path.getsize(fileobj) != 0):
                 if clobber:
-                    warnings.warn("Overwriting existing file '%s'." % fileobj)
+                    log.info("Overwriting existing file '%s'." % fileobj)
                     os.remove(fileobj)
                 else:
-                    raise IOError("File '%s' already exist." % fileobj)
+                    raise IOError("File '%s' already exists." % fileobj)
 
             fileobj = open(fileobj, 'w')
             close_file = True

@@ -1,4 +1,4 @@
-import warnings
+import logging
 
 import numpy as np
 
@@ -15,6 +15,9 @@ try:
     COMPRESSION_SUPPORTED = COMPRESSION_ENABLED = True
 except ImportError:
     COMPRESSION_SUPPORTED = COMPRESSION_ENABLED = False
+
+
+log = logging.getLogger(__name__)
 
 
 # Default compression parameter values
@@ -284,12 +287,14 @@ class CompImageHDU(BinTableHDU):
         if COMPRESSION_SUPPORTED and COMPRESSION_ENABLED:
             return True
         elif not COMPRESSION_SUPPORTED:
-            warnings.warn('Failure matching header to a compressed image '
-                          'HDU.\nThe compression module is not available.\n'
-                          'The HDU will be treated as a Binary Table HDU.')
+            log.warn('Failure matching header to a compressed image HDU.')
+            log.warn('The compression module is not available.\n'
+            log.warn('The HDU will be treated as a Binary Table HDU.')
             return False
         else:
             # Compression is supported but disabled; just pass silently (#92)
+            log.debug('Compression support disabled; treating compressed '
+                      'HDU as a binary table.')
             return False
 
     def updateHeaderData(self, image_header,
@@ -366,9 +371,8 @@ class CompImageHDU(BinTableHDU):
         if compressionType:
             if compressionType not in ['RICE_1','GZIP_1','PLIO_1',
                                        'HCOMPRESS_1']:
-                warnings.warn('Unknown compression type provided.  Default '
-                              '(%s) compression used.' %
-                              DEFAULT_COMPRESSION_TYPE)
+                log.warn('Unknown compression type provided.  Using default '
+                         'compression type (%s).' % DEFAULT_COMPRESSION_TYPE)
                 compressionType = DEFAULT_COMPRESSION_TYPE
 
             self._header.update('ZCMPTYPE', compressionType,
@@ -516,8 +520,8 @@ class CompImageHDU(BinTableHDU):
         if not tileSize:
             tileSize = []
         elif len(tileSize) != self._image_header['NAXIS']:
-            warnings.warn('Provided tile size not appropriate for the data.  '
-                          'Default tile size will be used.')
+            log.warn('Provided tile size not appropriate for the data.  '
+                     'Using default tile size.')
             tileSize = []
 
         # Set default tile dimensions for HCOMPRESS_1
@@ -1332,8 +1336,9 @@ class CompImageHDU(BinTableHDU):
         try:
             del cardlist['ZTENSION']
             if self._header['ZTENSION'] != 'IMAGE':
-                warnings.warn("ZTENSION keyword in compressed "
-                              "extension != 'IMAGE'")
+                # TODO: Perhaps this should be done in a _verify() method?
+                log.warn("ZTENSION keyword in compressed extension != 'IMAGE'")
+                log.warn("Setting ZTENSION keyword to IMAGE.")
             self._image_header.update('XTENSION',
                     'IMAGE',
                     self._header.ascard['ZTENSION'].comment)

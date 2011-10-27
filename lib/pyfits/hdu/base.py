@@ -3,9 +3,9 @@ from __future__ import division
 
 import datetime
 import inspect
+import logging
 import os
 import re
-import warnings
 
 import numpy as np
 
@@ -16,6 +16,9 @@ from pyfits.util import (Extendable, _with_extensions, lazyproperty, _is_int,
                         _is_pseudo_unsigned, _unsigned_zero, _pad_length,
                         itersubclasses, decode_ascii, BLOCK_SIZE, deprecated)
 from pyfits.verify import _Verify, _ErrList
+
+
+log = logging.getLogger(__name__)
 
 
 HEADER_END_RE = re.compile('END {77}')
@@ -54,10 +57,10 @@ def _hdu_class_from_header(cls, header):
             except NotImplementedError:
                 continue
             except Exception, e:
-                warnings.warn(
+                log.warn(
                     'An exception occurred matching an HDU header to the '
                     'appropriate HDU type: %s' % unicode(e))
-                warnings.warn('The HDU will be treated as corrupted.')
+                log.warn('The HDU will be treated as corrupted.')
                 klass = _CorruptedHDU
                 break
 
@@ -1054,7 +1057,8 @@ class _ValidHDU(_BaseHDU, _Verify):
     def _verify_checksum_datasum(self, blocking):
         """
         Verify the checksum/datasum values if the cards exist in the header.
-        Simply displays warnings if either the checksum or datasum don't match.
+
+        Simply logs warnings if either the checksum or datasum don't match.
         """
 
         # NOTE:  private data members _checksum and _datasum are
@@ -1065,8 +1069,8 @@ class _ValidHDU(_BaseHDU, _Verify):
             self._checksum = self._header['CHECKSUM']
             self._checksum_comment = self._header.ascard['CHECKSUM'].comment
             if not self.verify_checksum(blocking):
-                 warnings.warn('Checksum verification failed for HDU %s.\n' %
-                               ((self.name, self._extver),))
+                 log.warn('Checksum verification failed for HDU %s.\n' %
+                          ((self.name, self._extver),))
             del self._header['CHECKSUM']
         else:
             self._checksum = None
@@ -1077,8 +1081,8 @@ class _ValidHDU(_BaseHDU, _Verify):
              self._datasum_comment = self._header.ascard['DATASUM'].comment
 
              if not self.verify_datasum(blocking):
-                 warnings.warn('Datasum verification failed for HDU %s.\n' %
-                               ((self.name, self._extver),))
+                 log.warn('Datasum verification failed for HDU %s.\n' %
+                          ((self.name, self._extver),))
              del self._header['DATASUM']
         else:
              self._checksum = None

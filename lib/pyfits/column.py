@@ -9,6 +9,7 @@ from numpy import char as chararray
 from pyfits.card import Card
 from pyfits.util import lazyproperty, pairwise, _is_int, _convert_array, \
                         encode_ascii, deprecated
+from pyfits.verify import VerifyError
 
 
 __all__ = ['Column', 'ColDefs', 'Delayed']
@@ -917,8 +918,9 @@ def _parse_tformat(tform):
     try:
         (repeat, dtype, option) = TFORMAT_RE.match(tform.strip()).groups()
     except:
-        warnings.warn('Format "%s" is not recognized.' % tform)
-
+        # TODO: This should be caught earlier and the user should be given a
+        # more helpful message that their FITS file is malformatted.
+        raise VerifyError('Column format "%s" is not recognized.' % tform)
 
     if repeat == '':
         repeat = 1
@@ -1046,6 +1048,8 @@ def _convert_record2fits(format):
 
         output_format = str(ntot) + NUMPY2FITS[dtype]
     elif isinstance(dtype, _FormatX):
+        # TODO: FIXME: Why isn't X format supported? Why can't it survive a
+        # round trip?
         warnings.warn('X format')
     elif dtype + option in NUMPY2FITS: # record format
         if repeat != 1:

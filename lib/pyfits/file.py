@@ -1,11 +1,11 @@
 from __future__ import division
 
 import gzip
+import logging
 import os
 import sys
 import tempfile
 import urllib
-import warnings
 import zipfile
 
 import numpy as np
@@ -15,6 +15,9 @@ from pyfits.util import (Extendable, isreadable, iswritable, isfile,
                          fileobj_name, fileobj_closed, fileobj_mode,
                          _array_from_file, _array_to_file, _write_string,
                          deprecated)
+
+
+log = logging.getLogger(__name__)
 
 
 PYTHON_MODES = {'readonly': 'rb', 'copyonwrite': 'rb', 'update': 'rb+',
@@ -171,8 +174,7 @@ class _File(object):
 
         if self.memmap and not isfile(self.__file):
             self.memmap = False
-            warnings.warn('Disabling mmap for non-file-backed file-like '
-                          'object.')
+            log.warn('Disabling mmap for non-file-backed file-like object.')
 
     def __repr__(self):
         return '<%s.%s %s>' % (self.__module__, self.__class__.__name__,
@@ -235,8 +237,8 @@ class _File(object):
             shape = (size // dtype.itemsize,)
 
         if not (size or shape):
-            warnings.warn('No size or shape given to readarray(); assuming a '
-                          'shape of (1,)')
+            log.warn('No size or shape given to readarray(); assuming a shape '
+                     'of (1,)')
             shape = (1,)
 
         if self.memmap:
@@ -294,9 +296,9 @@ class _File(object):
 
         pos = self.__file.tell()
         if self.size and pos > self.size:
-            warnings.warn('File may have been truncated: actual file length '
-                          '(%i) is smaller than the expected size (%i)' %
-                          (self.size, pos))
+            log.error('File may have been truncated: actual file length (%i)'
+                      'is smaller than the expected size (%i)' %
+                      (self.size, pos))
 
     def tell(self):
         if not hasattr(self.__file, 'tell'):

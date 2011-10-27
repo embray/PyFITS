@@ -1,11 +1,11 @@
 from __future__ import division # confidence high
 
 import csv
+import logging
 import os
 import re
 import sys
 import textwrap
-import warnings
 
 import numpy as np
 from numpy import char as chararray
@@ -24,6 +24,9 @@ from pyfits.hdu.base import DELAYED, _ValidHDU, ExtensionHDU
 from pyfits.header import Header
 from pyfits.util import (lazyproperty, _is_int, _str_to_num, _pad_length,
                          deprecated)
+
+
+log = logging.getLogger(__name__)
 
 
 class FITSTableDumpDialect(csv.excel):
@@ -716,7 +719,7 @@ class BinTableHDU(_TableBaseHDU):
             if isinstance(f, basestring):
                 if os.path.exists(f) and os.path.getsize(f) != 0:
                     if clobber:
-                        warnings.warn("Overwriting existing file '%s'." % f)
+                        log.warn("Overwriting existing file '%s'." % f)
                     else:
                         exist.append(f)
 

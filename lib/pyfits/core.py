@@ -31,6 +31,7 @@ from __future__ import division # confidence high
                 - Google Search, when asked for "PyFITS"
 """
 
+import logging
 import os
 import sys
 import urllib
@@ -67,6 +68,9 @@ __all__ = pyfits.card.__all__ + pyfits.column.__all__ + \
           ['FITS_record', 'FITS_rec', 'GroupData', 'open', 'Section',
            'new_table', 'Header', 'VerifyError', 'TRUE', 'FALSE', 'USE_MEMMAP',
            'EXTENSION_NAME_CASE_SENSITIVE', 'setExtensionNameCaseSensitive']
+
+
+log = logging.getLogger(__name__)
 
 
 # These are of course deprecated, but a handful of external code still uses

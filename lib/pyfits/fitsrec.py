@@ -1,6 +1,6 @@
+import logging
 import operator
 import sys
-import warnings
 
 import numpy as np
 
@@ -8,6 +8,9 @@ from pyfits.column import ASCIITNULL, FITS2NUMPY, TDIM_RE, Column, ColDefs, \
                           _FormatX, _FormatP, _VLF, _get_index, _wrapx, \
                           _unwrapx, _convert_format, _convert_ascii_format
 from pyfits.util import _array_from_file, decode_ascii, lazyproperty
+
+
+log = logging.getLogger(__name__)
 
 
 class FITS_record(object):
@@ -214,7 +217,7 @@ class FITS_rec(np.recarray):
                 if hasattr(obj, attr):
                     value = getattr(obj, attr, None)
                     if value is None:
-                        warnings.warn('Setting attribute %s as None' % attr)
+                        log.debug('Setting attribute %s as None' % attr)
                     setattr(self, attr, value)
 
             if self._coldefs is None:
@@ -426,11 +429,11 @@ class FITS_rec(np.recarray):
                     else:
                         actual_nitems = dummy.shape[1]
                     if nitems != actual_nitems:
-                        warnings.warn(
-                        'TDIM%d value %s does not fit with the size of '
-                            'the array items (%d).  TDIM%d will be ignored.'
-                            % (indx + 1, self._coldefs.dims[indx],
-                               actual_nitems, indx + 1))
+                        log.warn(
+                            'TDIM%d value %s does not fit with the size of '
+                            'the array items (%d).  TDIM%d will be ignored.' %
+                            (indx + 1, self._coldefs.dims[indx], actual_nitems,
+                             indx + 1))
                         dim = None
 
             # further conversion for both ASCII and binary tables

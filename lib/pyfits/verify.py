@@ -1,4 +1,7 @@
-import warnings
+import logging
+
+
+log = logging.getLogger(__name__)
 
 
 _TAB = '   '
@@ -61,9 +64,9 @@ class _Verify(object):
         if opt in ['fix', 'silentfix'] and 'Unfixable' in x:
             raise VerifyError('\n' + x)
         if opt not in ['silentfix', 'exception'] and x:
-            warnings.warn('Output verification result:')
-            warnings.warn(x)
-            warnings.warn('Note: PyFITS uses zero-based indexing.')
+            log.info('Output verification result:')
+            log.info(x)
+            log.info('Note: PyFITS uses zero-based indexing.')
         if opt == 'exception' and x:
             raise VerifyError('\n' + x)
 
