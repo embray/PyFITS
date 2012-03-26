@@ -23,6 +23,11 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
 
         super(GroupsHDU, self).__init__(data=data, header=header)
 
+        # The name of the table record array field that will contain the group
+        # data for each group; 'data' by default, but may be precdeded by any
+        # number of underscores if 'data' is already a parameter name
+        self._data_field = 'DATA'
+
         # Update the axes; GROUPS HDUs should always have at least one axis
         if len(self._axes) <= 0:
             self._axes = [0]
@@ -47,39 +52,58 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
             data = GroupData(self._get_tbdata())
             data._coldefs = self.columns
             data.formats = self.columns.formats
-            data.parnames = self.columns._pnames
+            #data.parnames = self.columns._pnames
+            data.parnames = self.parnames
             del self.columns
         else:
             data = None
         return data
 
     @lazyproperty
+    def parnames(self):
+        """The names of the group parameters as described by the header."""
+
+        pcount = self._header['PCOUNT']
+        # The FITS standard doesn't really say what to do if a parname is
+        # missing, so for now just assume that won't happen
+        return [self._header['PTYPE' + str(idx + 1)] for idx in range(pcount)]
+
+
+    @lazyproperty
     def columns(self):
         if self._data_loaded and hasattr(self.data, '_coldefs'):
             return self.data._coldefs
+
         cols = []
-        pnames = []
-        pcount = self._header['PCOUNT']
+        parnames = []
         format = self._width2format[self._header['BITPIX']]
 
         for idx in range(self._header['PCOUNT']):
             bscale = self._header.get('PSCAL' + str(idx + 1), 1)
             bzero = self._header.get('PZERO' + str(idx + 1), 0)
-            pnames.append(self._header['PTYPE' + str(idx + 1)].lower())
-            cols.append(Column(name='c' + str(idx + 1), format=format,
-                               bscale=bscale, bzero=bzero))
+            name = self._header['PTYPE' + str(idx + 1)]
+            parnames.append(name)
+            cols.append(Column(name=name, format=format, bscale=bscale,
+                        bzero=bzero))
 
         data_shape = self.shape[:-1]
         dat_format = str(int(np.array(data_shape).sum())) + format
 
         bscale = self._header.get('BSCALE', 1)
         bzero = self._header.get('BZERO', 0)
-        cols.append(Column(name='data', format=dat_format, bscale=bscale,
-                           bzero=bzero))
+
+        parnames_upper = set(n.upper() for n in parnames)
+        while self._data_field in parnames_upper:
+            self._data_field = '_' + self._data_field
+
+        cols.append(Column(name=self._data_field, format=dat_format,
+                           bscale=bscale, bzero=bzero))
         coldefs = ColDefs(cols)
+        # TODO: Something has to be done about this spaghetti code of arbitrary
+        # attributes getting tacked on to the coldefs here.
         coldefs._shape = self._header['GCOUNT']
         coldefs._dat_format = FITS2NUMPY[format]
-        coldefs._pnames = pnames
+        #coldefs._pnames = pnames
         return coldefs
 
     @lazyproperty
@@ -144,28 +168,26 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
                 pass
 
         if isinstance(self.data, GroupData):
-            self._header.update('GROUPS', True,
-                                after='NAXIS' + str(len(self._axes)))
-            self._header.update('PCOUNT', len(self.data.parnames),
-                                after='GROUPS')
-            self._header.update('GCOUNT', len(self.data), after='PCOUNT')
+            self._header.set('GROUPS', True,
+                             after='NAXIS' + str(len(self._axes)))
+            self._header.set('PCOUNT', len(self.data.parnames), after='GROUPS')
+            self._header.set('GCOUNT', len(self.data), after='PCOUNT')
             npars = len(self.data.parnames)
             _scale, _zero = self.data._get_scale_factors(npars)[3:5]
             if _scale:
-                self._header.update('BSCALE',
-                                    self.data._coldefs.bscales[npars])
+                self._header.set('BSCALE', self.data._coldefs.bscales[npars])
             if _zero:
-                self._header.update('BZERO', self.data._coldefs.bzeros[npars])
+                self._header.set('BZERO', self.data._coldefs.bzeros[npars])
             for idx in range(npars):
-                self._header.update('PTYPE' + str(idx + 1),
-                                    self.data.parnames[idx])
+                self._header.set('PTYPE' + str(idx + 1),
+                                 self.data.parnames[idx])
                 _scale, _zero = self.data._get_scale_factors(idx)[3:5]
                 if _scale:
-                    self._header.update('PSCAL' + str(idx + 1),
-                                        self.data._coldefs.bscales[idx])
+                    self._header.set('PSCAL' + str(idx + 1),
+                                     self.data._coldefs.bscales[idx])
                 if _zero:
-                    self._header.update('PZERO' + str(idx + 1),
-                                        self.data._coldefs.bzeros[idx])
+                    self._header.set('PZERO' + str(idx + 1),
+                                     self.data._coldefs.bzeros[idx])
 
         # Update the position of the EXTEND keyword if it already exists
         if 'EXTEND' in self._header:
@@ -299,8 +321,100 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
             format = format[format.rfind('.') + 1:]
 
         # Update the GCOUNT report
-        gcount = '   %d Groups  %d Parameters' % (self._gcount, self._pcount)
+        gcount = '%d Groups  %d Parameters' % (self._gcount, self._pcount)
         return (name, classname, length, shape, format, gcount)
+
+
+class Group(FITS_record):
+    """
+    One group of the random group data.
+    """
+
+    def __init__(self, input, row):
+        super(Group, self).__init__(input, row)
+        self.parnames = input.parnames
+
+    def __str__(self):
+        """
+        Print one row.
+        """
+
+        if isinstance(self.row, slice):
+            if self.row.step:
+                step = self.row.step
+            else:
+                step = 1
+
+            if self.row.stop > len(self.array):
+                stop = len(self.array)
+            else:
+                stop = self.row.stop
+
+            outlist = []
+
+            for idx in range(self.row.start, stop, step):
+                rowlist = []
+
+                for jdx in range(self.array._nfields):
+                    rowlist.append(repr(self.array.field(jdx)[idx]))
+
+                outlist.append(' (%s)' % ', '.join(rowlist))
+
+            return '[%s]' % ',\n'.join(outlist)
+        else:
+            return super(Group, self).__str__()
+
+    @property
+    def data(self):
+        # The last column in the coldefs is the data portion of the group
+        return self.field(self.array._coldefs.names[-1])
+
+    @lazyproperty
+    def _unique(self):
+        return _unique([p.lower() for p in self.parnames])
+
+    def par(self, parname):
+        """
+        Get the group parameter value.
+        """
+
+        if _is_int(parname):
+            result = self.array[self.row][parname]
+        else:
+            indx = self._unique[parname.lower()]
+            if len(indx) == 1:
+                result = self.array[self.row][indx[0]]
+
+            # if more than one group parameter have the same name
+            else:
+                result = self.array[self.row][indx[0]].astype('f8')
+                for i in indx[1:]:
+                    result += self.array[self.row][i]
+
+        return result
+
+    def setpar(self, parname, value):
+        """
+        Set the group parameter value.
+        """
+
+        if _is_int(parname):
+            self.array[self.row][parname] = value
+        else:
+            indx = self._unique[parname.lower()]
+            if len(indx) == 1:
+                self.array[self.row][indx[0]] = value
+
+            # if more than one group parameter have the same name, the
+            # value must be a list (or tuple) containing arrays
+            else:
+                if isinstance(value, (list, tuple)) and \
+                   len(indx) == len(value):
+                    for i in range(len(indx)):
+                        self.array[self.row][indx[i]] = value[i]
+                else:
+                    raise ValueError('Parameter value must be a sequence '
+                                     'with %d arrays/numbers.' % len(indx))
 
 
 class GroupData(FITS_rec):
@@ -310,6 +424,8 @@ class GroupData(FITS_rec):
     Allows structured access to FITS Group data in a manner analogous
     to tables.
     """
+
+    _record_type = Group
 
     def __new__(subtype, input=None, bitpix=None, pardata=None, parnames=[],
                 bscale=None, bzero=None, parbscales=None, parbzeros=None):
@@ -395,14 +511,26 @@ class GroupData(FITS_rec):
                 np.rec.recarray.field(self, npars)[:] = input
         else:
             self = FITS_rec.__new__(subtype, input)
+            self.parnames = None
         return self
 
+    def __array_finalize__(self, obj):
+        super(GroupData, self).__array_finalize__(obj)
+        if isinstance(obj, GroupData):
+            self.parnames = obj.parnames
+        #elif isinstance(obj, FITS_rec):
+        #    self.parnames = obj._coldefs._pnames
+
     def __getitem__(self, key):
-        return _Group(self, key, self.parnames)
+        out = super(GroupData, self).__getitem__(key)
+        if isinstance(out, GroupData):
+            out.parnames = self.parnames
+        return out
 
     @property
     def data(self):
-        return self.field('data')
+        # The last column in the coldefs is the data portion of the group
+        return self.field(self._coldefs.names[-1])
 
     @lazyproperty
     def _unique(self):
@@ -429,96 +557,16 @@ class GroupData(FITS_rec):
         return result
 
 
-class _Group(FITS_record):
+def _unique(names, casesensitive=False):
     """
-    One group of the random group data.
+    Given a list of objects, returns a mapping of objects in that list to the
+    index or indices at which that object was found in the list.
     """
 
-    def __init__(self, input, row, parnames):
-        super(_Group, self).__init__(input, row)
-        self.parnames = parnames
-
-    def __str__(self):
-        """
-        Print one row.
-        """
-
-        if isinstance(self.row, slice):
-            if self.row.step:
-                step = self.row.step
-            else:
-                step = 1
-
-            if self.row.stop > len(self.array):
-                stop = len(self.array)
-            else:
-                stop = self.row.stop
-
-            outlist = []
-
-            for idx in range(self.row.start, stop, step):
-                rowlist = []
-
-                for jdx in range(self.array._nfields):
-                    rowlist.append(repr(self.array.field(jdx)[idx]))
-
-                outlist.append(' (%s)' % ', '.join(rowlist))
-
-            return '[%s]' % ',\n'.join(outlist)
-        else:
-            return super(_Group, self).__str__()
-
-    @lazyproperty
-    def _unique(self):
-        return _unique([p.lower() for p in self.parnames])
-
-    def par(self, parname):
-        """
-        Get the group parameter value.
-        """
-
-        if _is_int(parname):
-            result = self.array[self.row][parname]
-        else:
-            indx = self._unique[parname.lower()]
-            if len(indx) == 1:
-                result = self.array[self.row][indx[0]]
-
-            # if more than one group parameter have the same name
-            else:
-                result = self.array[self.row][indx[0]].astype('f8')
-                for i in indx[1:]:
-                    result += self.array[self.row][i]
-
-        return result
-
-    def setpar(self, parname, value):
-        """
-        Set the group parameter value.
-        """
-
-        if _is_int(parname):
-            self.array[self.row][parname] = value
-        else:
-            indx = self._unique[parname.lower()]
-            if len(indx) == 1:
-                self.array[self.row][indx[0]] = value
-
-            # if more than one group parameter have the same name, the
-            # value must be a list (or tuple) containing arrays
-            else:
-                if isinstance(value, (list, tuple)) and \
-                   len(indx) == len(value):
-                    for i in range(len(indx)):
-                        self.array[self.row][indx[i]] = value[i]
-                else:
-                    raise ValueError('Parameter value must be a sequence '
-                                     'with %d arrays/numbers.' % len(indx))
-
-
-def _unique(names):
     unique = {}
     for idx, name in enumerate(names):
+        if not casesensitive:
+            name = name.lower()
         if name in unique:
             unique[name].append(idx)
         else:
