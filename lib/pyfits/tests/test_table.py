@@ -680,7 +680,7 @@ class TestTableFunctions(PyfitsTestCase):
              ('NGC3', 308, '0.0', np.array([ 0.,  0.,  0.,  0.,  0.], dtype=np.float32), True, 'NGC7', 408, '0.0', np.array([ 0.,  0.,  0.,  0.,  0.], dtype=np.float32), False),
              ('NCG4', 317, '0.0', np.array([ 0.,  0.,  0.,  0.,  0.], dtype=np.float32), True, 'NCG8', 417, '0.0', np.array([ 0.,  0.,  0.,  0.,  0.], dtype=np.float32), False)],
              formats='a10,u4,a10,5f4,l,a10,u4,a10,5f4,l')
-        assert_true(<F2>comparerecords(hdu.data, array))
+        assert_true(comparerecords(hdu.data, array))
 
         hdu.writeto(self.temp('newtable.fits'))
 
