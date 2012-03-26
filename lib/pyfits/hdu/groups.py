@@ -52,7 +52,6 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
             data = GroupData(self._get_tbdata())
             data._coldefs = self.columns
             data.formats = self.columns.formats
-            #data.parnames = self.columns._pnames
             data.parnames = self.parnames
             del self.columns
         else:
@@ -103,7 +102,6 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
         # attributes getting tacked on to the coldefs here.
         coldefs._shape = self._header['GCOUNT']
         coldefs._dat_format = FITS2NUMPY[format]
-        #coldefs._pnames = pnames
         return coldefs
 
     @lazyproperty
@@ -518,8 +516,8 @@ class GroupData(FITS_rec):
         super(GroupData, self).__array_finalize__(obj)
         if isinstance(obj, GroupData):
             self.parnames = obj.parnames
-        #elif isinstance(obj, FITS_rec):
-        #    self.parnames = obj._coldefs._pnames
+        elif isinstance(obj, FITS_rec):
+            self.parnames = obj._coldefs.names
 
     def __getitem__(self, key):
         out = super(GroupData, self).__getitem__(key)
