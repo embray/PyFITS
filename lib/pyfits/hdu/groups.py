@@ -73,30 +73,32 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
         if self._data_loaded and hasattr(self.data, '_coldefs'):
             return self.data._coldefs
 
-        cols = []
-        parnames = []
         format = self._width2format[self._header['BITPIX']]
+        pcount = self._header['PCOUNT']
+        parnames = []
+        bscales = []
+        bzeros = []
 
-        for idx in range(self._header['PCOUNT']):
-            bscale = self._header.get('PSCAL' + str(idx + 1), 1)
-            bzero = self._header.get('PZERO' + str(idx + 1), 0)
-            name = self._header['PTYPE' + str(idx + 1)]
-            parnames.append(name)
-            cols.append(Column(name=name, format=format, bscale=bscale,
-                        bzero=bzero))
+        for idx in range(pcount):
+            bscales.append(self._header.get('PSCAL' + str(idx + 1), 1))
+            bzeros.append(self._header.get('PZERO' + str(idx + 1), 0))
+            parnames.append(self._header['PTYPE' + str(idx + 1)])
 
+        # Now create columns from collected parameters, but first add the DATA
+        # column too, to contain the group data.
+        formats = [format] * len(parnames)
+        parnames.append('DATA')
+        bscales.append(self._header.get('BSCALE', 1))
+        bzeros.append(self._header.get('BZEROS', 0))
         data_shape = self.shape[:-1]
-        dat_format = str(int(np.array(data_shape).sum())) + format
+        formats.append(str(int(np.array(data_shape).sum())) + format)
+        parnames = _unique_parnames(parnames)
+        self._data_field = parnames[-1]
 
-        bscale = self._header.get('BSCALE', 1)
-        bzero = self._header.get('BZERO', 0)
+        cols = [Column(name=name, format=fmt, bscale=bscale, bzero=bzero)
+                for name, fmt, bscale, bzero in
+                zip(parnames, formats, bscales, bzeros)]
 
-        parnames_upper = set(n.upper() for n in parnames)
-        while self._data_field in parnames_upper:
-            self._data_field = '_' + self._data_field
-
-        cols.append(Column(name=self._data_field, format=dat_format,
-                           bscale=bscale, bzero=bzero))
         coldefs = ColDefs(cols)
         # TODO: Something has to be done about this spaghetti code of arbitrary
         # attributes getting tacked on to the coldefs here.
@@ -369,7 +371,7 @@ class Group(FITS_record):
 
     @lazyproperty
     def _unique(self):
-        return _unique([p.lower() for p in self.parnames])
+        return _par_indices(self.parnames)
 
     def par(self, parname):
         """
@@ -379,7 +381,7 @@ class Group(FITS_record):
         if _is_int(parname):
             result = self.array[self.row][parname]
         else:
-            indx = self._unique[parname.lower()]
+            indx = self._unique[parname.upper()]
             if len(indx) == 1:
                 result = self.array[self.row][indx[0]]
 
@@ -399,7 +401,7 @@ class Group(FITS_record):
         if _is_int(parname):
             self.array[self.row][parname] = value
         else:
-            indx = self._unique[parname.lower()]
+            indx = self._unique[parname.upper()]
             if len(indx) == 1:
                 self.array[self.row][indx[0]] = value
 
@@ -460,8 +462,6 @@ class GroupData(FITS_rec):
         """
 
         if not isinstance(input, FITS_rec):
-            _formats = ''
-            _cols = []
             if pardata is None:
                 npars = 0
             else:
@@ -472,38 +472,45 @@ class GroupData(FITS_rec):
             if parbzeros is None:
                 parbzeros = [None] * npars
 
+            if parnames is None:
+                parnames = ['PAR%d' % (idx + 1) for idx in range(npars)]
+
+            unique_parnames = _unique_parnames(parnames + ['DATA'])
+
             if bitpix is None:
                 bitpix = _ImageBaseHDU.ImgCode[input.dtype.name]
+
             fits_fmt = GroupsHDU._width2format[bitpix]  # -32 -> 'E'
-            _fmt = FITS2NUMPY[fits_fmt]  # 'E' -> 'f4'
-            _formats = (_fmt + ',') * npars
-            data_fmt = '%s%s' % (str(input.shape[1:]), _fmt)
-            _formats += data_fmt
+            format = FITS2NUMPY[fits_fmt]  # 'E' -> 'f4'
+            data_fmt = '%s%s' % (str(input.shape[1:]), format)
+            formats = ','.join(([format] * npars) + [data_fmt])
             gcount = input.shape[0]
-            for idx in range(npars):
-                _cols.append(Column(name='c' + str(idx + 1), format=fits_fmt,
-                                    bscale=parbscales[idx],
-                                    bzero=parbzeros[idx]))
-            _cols.append(Column(name='data', format=fits_fmt, bscale=bscale,
-                                bzero=bzero))
-            _coldefs = ColDefs(_cols)
+
+            cols = [Column(name=unique_parnames[idx], format=fits_fmt,
+                           bscale=parbscales[idx], bzero=parbzeros[idx])
+                    for idx in range(npars)]
+            cols.append(Column(name=unique_parnames[-1], format=fits_fmt,
+                               bscale=bscale, bzero=bzero))
+
+            coldefs = ColDefs(cols)
 
             self = FITS_rec.__new__(subtype,
                                     np.rec.array(None,
-                                                 formats=_formats,
-                                                 names=_coldefs.names,
+                                                 formats=formats,
+                                                 names=coldefs.names,
                                                  shape=gcount))
-            self._coldefs = _coldefs
+            self._coldefs = coldefs
             self.parnames = parnames
 
             for idx in range(npars):
-                _scale, _zero = self._get_scale_factors(idx)[3:5]
-                if _scale or _zero:
+                scale, zero = self._get_scale_factors(idx)[3:5]
+                if scale or zero:
                     self._convert[idx] = pardata[idx]
                 else:
                     np.rec.recarray.field(self, idx)[:] = pardata[idx]
-            _scale, _zero = self._get_scale_factors(npars)[3:5]
-            if _scale or _zero:
+
+            scale, zero = self._get_scale_factors(npars)[3:5]
+            if scale or zero:
                 self._convert[npars] = input
             else:
                 np.rec.recarray.field(self, npars)[:] = input
@@ -532,7 +539,7 @@ class GroupData(FITS_rec):
 
     @lazyproperty
     def _unique(self):
-        return _unique([p.lower() for p in self.parnames])
+        return _par_indices(self.parnames)
 
     def par(self, parname):
         """
@@ -542,7 +549,7 @@ class GroupData(FITS_rec):
         if _is_int(parname):
             result = self.field(parname)
         else:
-            indx = self._unique[parname.lower()]
+            indx = self._unique[parname.upper()]
             if len(indx) == 1:
                 result = self.field(indx[0])
 
@@ -555,7 +562,7 @@ class GroupData(FITS_rec):
         return result
 
 
-def _unique(names, casesensitive=False):
+def _par_indices(names):
     """
     Given a list of objects, returns a mapping of objects in that list to the
     index or indices at which that object was found in the list.
@@ -563,10 +570,32 @@ def _unique(names, casesensitive=False):
 
     unique = {}
     for idx, name in enumerate(names):
-        if not casesensitive:
-            name = name.lower()
+        # Case insensitive
+        name = name.upper()
         if name in unique:
             unique[name].append(idx)
         else:
             unique[name] = [idx]
     return unique
+
+
+def _unique_parnames(names):
+    """
+    Given a list of parnames, including possible duplicates, returns a new list
+    of parnames with duplicates prepended by one or more underscores to make
+    them unique.  This is also case insensitive.
+    """
+
+    upper_names = set()
+    unique_names = []
+
+    for name in names:
+        name_upper = name.upper()
+        while name_upper in upper_names:
+            name = '_' + name
+            name_upper = '_' + name_upper
+
+        unique_names.append(name)
+        upper_names.add(name_upper)
+
+    return unique_names
