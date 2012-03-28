@@ -158,7 +158,7 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
                     after = 'NAXIS'
                 else:
                     after = 'NAXIS' + str(idx)
-                self._header.update('NAXIS' + str(idx + 1), axis, after=after)
+                self._header.set('NAXIS' + str(idx + 1), axis, after=after)
 
         # delete extra NAXISi's
         for idx in range(len(self._axes) + 1, old_naxis + 1):
@@ -173,19 +173,19 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
             self._header.set('PCOUNT', len(self.data.parnames), after='GROUPS')
             self._header.set('GCOUNT', len(self.data), after='PCOUNT')
             npars = len(self.data.parnames)
-            _scale, _zero = self.data._get_scale_factors(npars)[3:5]
-            if _scale:
+            scale, zero = self.data._get_scale_factors(npars)[3:5]
+            if scale:
                 self._header.set('BSCALE', self.data._coldefs.bscales[npars])
-            if _zero:
+            if zero:
                 self._header.set('BZERO', self.data._coldefs.bzeros[npars])
             for idx in range(npars):
                 self._header.set('PTYPE' + str(idx + 1),
                                  self.data.parnames[idx])
-                _scale, _zero = self.data._get_scale_factors(idx)[3:5]
-                if _scale:
+                scale, zero = self.data._get_scale_factors(idx)[3:5]
+                if scale:
                     self._header.set('PSCAL' + str(idx + 1),
                                      self.data._coldefs.bscales[idx])
-                if _zero:
+                if zero:
                     self._header.set('PZERO' + str(idx + 1),
                                      self.data._coldefs.bzeros[idx])
 
@@ -330,39 +330,10 @@ class Group(FITS_record):
     One group of the random group data.
     """
 
-    def __init__(self, input, row):
-        super(Group, self).__init__(input, row)
+    def __init__(self, input, row=0, start=None, end=None, step=None,
+                 base=None):
+        super(Group, self).__init__(input, row, start, end, step, base)
         self.parnames = input.parnames
-
-    def __str__(self):
-        """
-        Print one row.
-        """
-
-        if isinstance(self.row, slice):
-            if self.row.step:
-                step = self.row.step
-            else:
-                step = 1
-
-            if self.row.stop > len(self.array):
-                stop = len(self.array)
-            else:
-                stop = self.row.stop
-
-            outlist = []
-
-            for idx in range(self.row.start, stop, step):
-                rowlist = []
-
-                for jdx in range(self.array._nfields):
-                    rowlist.append(repr(self.array.field(jdx)[idx]))
-
-                outlist.append(' (%s)' % ', '.join(rowlist))
-
-            return '[%s]' % ',\n'.join(outlist)
-        else:
-            return super(Group, self).__str__()
 
     @property
     def data(self):
@@ -397,6 +368,11 @@ class Group(FITS_record):
         """
         Set the group parameter value.
         """
+
+        # TODO: It would be nice if, instead of requiring a multi-part value to
+        # be an array, there were an *option* to automatically split the value
+        # into multiple columns if it doesn't already fit in the array data
+        # type.
 
         if _is_int(parname):
             self.array[self.row][parname] = value
