@@ -451,6 +451,10 @@ class GroupData(FITS_rec):
             if parnames is None:
                 parnames = ['PAR%d' % (idx + 1) for idx in range(npars)]
 
+            if len(parnames) != npars:
+                raise ValueError('The number of paramater data arrays does '
+                                 'not match the number of paramaters.')
+
             unique_parnames = _unique_parnames(parnames + ['DATA'])
 
             if bitpix is None:

@@ -3,7 +3,7 @@ from __future__ import with_statement
 import numpy as np
 from numpy import char as chararray
 
-from nose.tools import assert_equal, assert_true
+from nose.tools import assert_equal, assert_true, assert_raises
 
 import pyfits
 from pyfits.tests import PyfitsTestCase
@@ -125,3 +125,46 @@ class TestGroupsFunctions(PyfitsTestCase):
             assert_equal(hdr['NAXIS5'], 1)
             assert_equal(h[0].data.parnames, ['abc', 'xyz'])
             assert_true(comparerecords(h[0].data, x))
+
+    def test_duplicate_parameter(self):
+        """
+        Tests support for multiple parameters of the same name, and ensures
+        that the data in duplicate parameters are returned as a single summed
+        value.
+        """
+
+        imdata = np.arange(100.0)
+        imdata.shape = (10, 1, 1, 2, 5)
+        pdata1 = np.arange(10, dtype=np.float32) + 1
+        pdata2 = 42.0
+        x = pyfits.hdu.groups.GroupData(imdata, parnames=['abc', 'xyz', 'abc'],
+                                        pardata=[pdata1, pdata2, pdata1],
+                                        bitpix=-32)
+
+        assert_equal(x.parnames, ['abc', 'xyz', 'abc'])
+        assert_true((x.par('abc') == pdata1 * 2).all())
+        assert_equal(x[0].par('abc'), 2)
+
+        # Test setting a parameter
+        x[0].setpar(0, 2)
+        assert_equal(x[0].par('abc'), 3)
+        assert_raises(ValueError, x[0].setpar, 'abc', 2)
+        x[0].setpar('abc', (2, 3))
+        assert_equal(x[0].par('abc'), 5)
+        assert_equal(x.par('abc')[0], 5)
+        assert_true((x.par('abc')[1:] == pdata1[1:] * 2).all())
+
+        # Test round-trip
+        ghdu = pyfits.GroupsHDU(data=x)
+        ghdu.writeto(self.temp('test.fits'))
+
+        with pyfits.open(self.temp('test.fits')) as h:
+            hdr = h[0].header
+            assert_equal(hdr['PCOUNT'], 3)
+            assert_equal(hdr['PTYPE1'], 'abc')
+            assert_equal(hdr['PTYPE2'], 'xyz')
+            assert_equal(hdr['PTYPE3'], 'abc')
+            assert_equal(x.parnames, ['abc', 'xyz', 'abc'])
+            assert_equal(x.dtype.names, ('abc', 'xyz', '_abc', 'DATA'))
+            assert_equal(x.par('abc')[0], 5)
+            assert_true((x.par('abc')[1:] == pdata1[1:] * 2).all())
