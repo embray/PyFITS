@@ -407,7 +407,8 @@ class CompImageHDU(BinTableHDU):
             self._header.set('ZCMPTYPE', compressionType,
                              'compression algorithm', after='TFIELDS')
         else:
-            compressionType = self._header.get('ZCMPTYPE', 'RICE_1')
+            compressionType = self._header.get('ZCMPTYPE',
+                                               DEFAULT_COMPRESSION_TYPE)
 
         # If the input image header had BSCALE/BZERO cards, then insert
         # them in the table header.
