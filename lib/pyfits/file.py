@@ -45,7 +45,7 @@ class _File(object):
     Represents a FITS file on disk (or in some other file-like object).
     """
 
-    def __init__(self, fileobj=None, mode='readonly', memmap=False):
+    def __init__(self, fileobj=None, mode=None, memmap=False, clobber=False):
         if fileobj is None:
             self.__file = None
             self.closed = False
@@ -58,6 +58,13 @@ class _File(object):
             return
         else:
             self.simulateonly = False
+
+        if mode is None:
+            # Determine the appropriate mode from the raw fileobj mode
+            for key, val in PYTHON_MODES.iteritems():
+                if val == fmode:
+                    mode = key
+                    break
 
         if mode not in PYTHON_MODES:
             raise ValueError("Mode '%s' not recognized" % mode)

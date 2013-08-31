@@ -235,7 +235,7 @@ class HDUList(list, _Verify):
         self.close()
 
     @classmethod
-    def fromfile(cls, fileobj, mode='readonly', memmap=False,
+    def fromfile(cls, fileobj, mode=None, memmap=False,
                  save_backup=False, **kwargs):
         """
         Creates an HDUList instance from a file-like object.
@@ -666,7 +666,7 @@ class HDUList(list, _Verify):
                 mode = key
                 break
 
-        hdulist = fitsopen(fileobj, mode=mode)
+        hdulist = self.fromfile(fileobj)
 
         for hdu in self:
             hdu._prewriteto(checksum=checksum)
@@ -763,7 +763,7 @@ class HDUList(list, _Verify):
         return None
 
     @classmethod
-    def _readfrom(cls, fileobj=None, data=None, mode='readonly',
+    def _readfrom(cls, fileobj=None, data=None, mode=None,
                   memmap=False, save_backup=False, **kwargs):
         """
         Provides the implementations from HDUList.fromfile and
@@ -774,8 +774,15 @@ class HDUList(list, _Verify):
         if fileobj is not None:
             # instantiate a FITS file object (ffo)
             ffo = _File(fileobj, mode=mode, memmap=memmap)
+            # The pyfits mode is determined by the _File initializer if the
+            # supplied mode was None
+            mode = ff.mode
             hdulist = cls(file=ffo)
         else:
+            if mode is None:
+                # The default mode
+                mode = 'readonly'
+
             hdulist = cls()
             # This method is currently only called from HDUList.fromstring and
             # HDUList.fromfile.  If fileobj is None then this must be the
@@ -791,15 +798,15 @@ class HDUList(list, _Verify):
                 kwargs['disable_image_compression']):
                 compressed.COMPRESSION_ENABLED = False
 
-            if mode == 'ostream':
-                # Output stream--not interested in reading/parsing the
-                # HDUs--just writing to the output file
-                return hdulist
-
             # read all HDUs
             while True:
                 try:
                     if fileobj is not None:
+                        if ffo.writeonly:
+                            # Output stream--not interested in reading/parsing
+                            # the HDUs--just writing to the output file
+                            return hdulist
+
                         try:
                             hdu = _BaseHDU.readfrom(ffo, **kwargs)
                         except EOFError:

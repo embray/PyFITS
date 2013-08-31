@@ -477,35 +477,43 @@ def fileobj_mode(f):
     # Go from most to least specific--for example gzip objects have a 'mode'
     # attribute, but it's not analogous to the file.mode attribute
     if hasattr(f, 'fileobj') and hasattr(f.fileobj, 'mode'):
-        mode = f.fileobj.mode
+        fileobj = f.fileobj
     elif hasattr(f, 'fp') and hasattr(f.fp, 'mode'):
-        mode = f.fp.mode
+        fileobj = f.fp
     elif hasattr(f, 'mode'):
-        mode = f.mode
+        fileobj = f
     else:
-        mode = None
+        return None
 
-    if isinstance(mode, basestring):
-        # On Python 3 files opened in 'a' mode actually get opened in 'w' or
-        # 'r+' instead of 'a', since the behavior of 'a' mode is not normalized
-        # across systems.  So we should normalize in the same way...
-        if 'a' in mode:
-            if '+' in mode:
-                mode = mode.replace('a', 'r')
-            else:
-                mode = mode.replace('a', 'w')
+    return _fileobj_normalize_mode(fileobj)
 
-        # I've noticed that sometimes Python can produce modes like 'r+b' which
-        # I would consider kind of a bug--mode strings should be normalized.
-        # Let's normalize it for them:
-        if '+' in mode:
-            mode = mode.replace('+', '')
-            mode += '+'
-    else:
-        # If mode still turned out to be something other than a string, it's
-        # not the droid we were looking for, and we should just toss it
-        mode = None
-    return mode
+
+def _fileobj_normalize_mode(f):
+    """Takes care of some corner cases in Python where the mode string
+    is either oddly formatted or does not truly represent the file mode.
+    """
+
+    # I've noticed that sometimes Python can produce modes like 'r+b' which I
+    # would consider kind of a bug--mode strings should be normalized.  Let's
+    # normalize it for them:
+    if '+' in mode:
+        mode = mode.replace('+', '')
+        mode += '+'
+
+
+def _fileobj_is_append_mode(f):
+    """Normally the way to tell if a file is in append mode is if it has
+    'a' in the mode string.  However on Python 3 (or in particular with
+    the io module) this can't be relied on.  See
+    http://bugs.python.org/issue18876.
+    """
+
+    if 'a' in f.mode:
+        # Take care of the obvious case first
+        return True
+
+    # We might have an io.FileIO in which case the only way to know for sure
+    # if the file is in append mode is to ask the file descriptor
 
 
 def fileobj_is_binary(f):
