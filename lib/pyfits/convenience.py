@@ -57,7 +57,7 @@ import os
 
 import numpy as np
 
-from pyfits.file import PYTHON_MODES, _File
+from pyfits.file import PYFITS_MODES, _File
 from pyfits.hdu.base import _BaseHDU, _ValidHDU
 from pyfits.hdu.hdulist import fitsopen
 from pyfits.hdu.image import PrimaryHDU, ImageHDU
@@ -797,7 +797,7 @@ def _get_file_mode(filename, default='copyonwrite'):
         else:
             file_mode = filename.mode
 
-        for key, val in PYTHON_MODES.iteritems():
+        for key, val in PYFITS_MODES.iteritems():
             if val == file_mode:
                 mode = key
                 break

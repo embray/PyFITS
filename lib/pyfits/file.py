@@ -17,9 +17,30 @@ from pyfits.util import (isreadable, iswritable, isfile, fileobj_open,
                          _array_from_file, _array_to_file, _write_string)
 
 
-# File object open modes
-PYTHON_MODES = {'readonly': 'rb', 'copyonwrite': 'rb', 'update': 'rb+',
-                'append': 'ab+', 'ostream': 'wb', 'denywrite': 'rb'}
+# Maps PyFITS-specific file mode names to the appropriate file modes to use
+# for the underlying raw files
+PYFITS_MODES = {
+    'readonly': 'rb',
+    'copyonwrite': 'rb',
+    'update': 'rb+',
+    'append': 'ab+',
+    'ostream': 'wb',
+    'denywrite': 'rb'}
+
+# This is the old name of the PYFITS_MODES dict; it is maintained here for
+# backwards compatibility and should be removed no sooner than PyFITS 3.4
+PYTHON_MODES = PYFITS_MODES
+
+# Maps OS-level file modes to the appropriate PyFITS specific mode to use
+# when given file objects but no mode specified; obviously in PYFITS_MODES
+# there are overlaps; for example 'readonly' and 'denywrite' both require
+# the file to be opened in 'rb' mode.  But 'readonly' is the default
+# behavior for such files if not otherwise specified.
+FILE_MODES = {
+    'rb': 'readonly', 'rb+': 'update',
+    'wb': 'ostream', 'wb+': 'update',
+    'ab': 'append', 'ab+': 'append'}
+
 
 # readonly actually uses copyonwrite for mmap so that readonly without mmap and
 # with mmap still have to same behavior with regard to updating the array.  To
@@ -60,13 +81,7 @@ class _File(object):
             self.simulateonly = False
 
         if mode is None:
-            # Determine the appropriate mode from the raw fileobj mode
-            for key, val in PYTHON_MODES.iteritems():
-                if val == fmode:
-                    mode = key
-                    break
-
-        if mode not in PYTHON_MODES:
+        if mode not in PYFITS_MODES:
             raise ValueError("Mode '%s' not recognized" % mode)
 
         if (isinstance(fileobj, basestring) and mode != 'append' and
@@ -277,25 +292,25 @@ class _File(object):
         """Open a FITS file from a file object or a GzipFile object."""
 
         closed = fileobj_closed(fileobj)
-        fmode = fileobj_mode(fileobj) or PYTHON_MODES[mode]
+        fmode = fileobj_mode(fileobj) or PYFITS_MODES[mode]
 
         if not closed:
             # In some cases (like on Python 3) a file opened for appending
             # still shows a mode of 'r+', hence the extra check for the append
             # case
             if ((mode == 'append' and fmode not in ('ab+', 'rb+')) or
-                (mode != 'append' and PYTHON_MODES[mode] != fmode)):
+                (mode != 'append' and PYFITS_MODES[mode] != fmode)):
                 raise ValueError(
                     "Input mode '%s' (%s) does not match mode of the "
-                    "input file (%s)." % (mode, PYTHON_MODES[mode], fmode))
+                    "input file (%s)." % (mode, PYFITS_MODES[mode], fmode))
             self.__file = fileobj
         elif isfile(fileobj):
-            self.__file = fileobj_open(self.name, PYTHON_MODES[mode])
+            self.__file = fileobj_open(self.name, PYFITS_MODES[mode])
             # Return to the beginning of the file--in Python 3 when opening in
             # append mode the file pointer is at the end of the file
             self.__file.seek(0)
         else:
-            self.__file = gzip.open(self.name, PYTHON_MODES[mode])
+            self.__file = gzip.open(self.name, PYFITS_MODES[mode])
 
     def _open_filelike(self, fileobj, mode):
         """Open a FITS file from a file-like object, i.e. one that has
@@ -334,7 +349,7 @@ class _File(object):
         ext = os.path.splitext(self.name)[1]
         if ext == '.gz' or magic.startswith(GZIP_MAGIC):
             # Handle gzip files
-            self.__file = gzip.open(self.name, PYTHON_MODES[mode])
+            self.__file = gzip.open(self.name, PYFITS_MODES[mode])
             self.compression = 'gzip'
         elif ext == '.zip' or magic.startswith(PKZIP_MAGIC):
             # Handle zip files
