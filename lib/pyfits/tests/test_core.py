@@ -434,6 +434,27 @@ class TestFileFunctions(PyfitsTestCase):
     class.
     """
 
+    def test_open_nonexistent(self):
+        """Test that trying to open a non-existent file results in an
+        IOError (and not some other arbitrary exception).
+        """
+
+        try:
+            fits.open(self.temp('foobar.fits'))
+        except IOError, e:
+            assert 'File does not exist' in str(e)
+        except:
+            raise
+
+        # But opening in ostream or append mode should be okay, since they
+        # allow writing new files
+        for mode in ('ostream', 'append'):
+            with fits.open(self.temp('foobar.fits'), mode=mode) as h:
+                pass
+
+            assert os.path.exists(self.temp('foobar.fits'))
+            os.remove(self.temp('foobar.fits'))
+
     def test_open_gzipped(self):
         with ignore_warnings():
             assert len(fits.open(self._make_gzip_file())) == 5
@@ -445,8 +466,13 @@ class TestFileFunctions(PyfitsTestCase):
             assert len(fits.open(self._make_gzip_file('test0.fz'))) == 5
 
     def test_open_zipped(self):
+        zf = self._make_zip_file()
+
         with ignore_warnings():
             assert len(fits.open(self._make_zip_file())) == 5
+
+        with ignore_warnings():
+            assert len(fits.open(zipfile.ZipFile(zf))) == 5
 
     def test_detect_zipped(self):
         """Test detection of a zip file when the extension is not .zip."""
@@ -459,6 +485,10 @@ class TestFileFunctions(PyfitsTestCase):
         """Opening zipped files in a writeable mode should fail."""
 
         zf = self._make_zip_file()
+        assert_raises(IOError, fits.open, zf, 'update')
+        assert_raises(IOError, fits.open, zf, 'append')
+
+        zf = zipfile.ZipFile(zf, 'a')
         assert_raises(IOError, fits.open, zf, 'update')
         assert_raises(IOError, fits.open, zf, 'append')
 
@@ -540,6 +570,52 @@ class TestFileFunctions(PyfitsTestCase):
         hdul.close()
 
         assert old_mode == os.stat(filename).st_mode
+
+    def test_fileobj_mode_guessing(self):
+        """Tests whether a file opened without a specified pyfits mode
+        ('readonly', etc.) is opened in a mode appropriate for the given file
+        object.
+        """
+
+        self.copy_file('test0.fits')
+
+        # Opening in text mode should outright fail
+        for mode in ('r', 'w', 'a'):
+            with open(self.temp('test0.fits'), mode) as f:
+                assert_raises(ValueError, fits.HDUList.fromfile, f)
+
+        # Need to re-copy the file since opening it in 'w' mode blew it away
+        self.copy_file('test0.fits')
+
+        with open(self.temp('test0.fits'), 'rb') as f:
+            with fits.HDUList.fromfile(f) as h:
+                assert h.fileinfo(0)['filemode'] == 'readonly'
+
+        for mode in ('wb', 'ab'):
+            with open(self.temp('test0.fits'), mode) as f:
+                with fits.HDUList.fromfile(f) as h:
+                    # Basically opening empty files for output streaming
+                    assert len(h) == 0
+
+        # Need to re-copy the file since opening it in 'w' mode blew it away
+        self.copy_file('test0.fits')
+
+        with open(self.temp('test0.fits'), 'wb+') as f:
+            with fits.HDUList.fromfile(f) as h:
+                # wb+ still causes an existing file to be overwritten so there
+                # are no HDUs
+                assert len(h) == 0
+
+        # Need to re-copy the file since opening it in 'w' mode blew it away
+        self.copy_file('test0.fits')
+
+        with open(self.temp('test0.fits'), 'rb+') as f:
+            with fits.HDUList.fromfile(f) as h:
+                assert h.fileinfo(0)['filemode'] == 'update'
+
+        with open(self.temp('test0.fits'), 'ab+') as f:
+            with fits.HDUList.fromfile(f) as h:
+                assert h.fileinfo(0)['filemode'] == 'append'
 
     def _make_gzip_file(self, filename='test0.fits.gz'):
         gzfile = self.temp(filename)

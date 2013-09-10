@@ -71,6 +71,7 @@ class _File(object):
         if fileobj is None:
             self.__file = None
             self.closed = False
+            self.binary = True
             self.mode = mode
             self.memmap = memmap
             self.compression = None
@@ -103,7 +104,7 @@ class _File(object):
             # over the web.
             try:
                 self.name, _ = urllib.urlretrieve(fileobj)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, IOError):
                 # A couple different exceptions can occur here when passing a
                 # filename into urlretrieve in Python 3
                 raise IOError('File does not exist: %r' % fileobj)
@@ -111,6 +112,7 @@ class _File(object):
             self.name = fileobj_name(fileobj)
 
         self.closed = False
+        self.binary = True
         self.mode = mode
         self.memmap = memmap
 
@@ -339,7 +341,7 @@ class _File(object):
                     (mode == 'append' and fmode not in ('ab+', 'rb+')) or
                     (mode == 'ostream' and
                      not ('w' in fmode or 'a' in fmode or '+' in fmode)) or
-                    (mode == 'update' and fmode != 'rb+')):
+                    (mode == 'update' and fmode not in ('rb+', 'wb+'))):
                 raise ValueError(
                     "Mode argument '%s' does not match mode of the input "
                     "file (%s)." % (mode, fmode))
@@ -363,6 +365,13 @@ class _File(object):
         if fileobj_closed(fileobj):
             raise IOError("Cannot read from/write to a closed file-like "
                           "object (%r)." % fileobj)
+
+        if isinstance(fileobj, zipfile.ZipFile):
+            self._open_zipfile(fileobj, mode)
+            self.__file.seek(0)
+            # We can bypass any additional checks at this point since now
+            # self.__file points to the temp file extracted from the zip
+            return
 
         # If there is not seek or tell methods then set the mode to
         # output streaming.
@@ -406,23 +415,40 @@ class _File(object):
             self.compression = 'gzip'
         elif ext == '.zip' or magic.startswith(PKZIP_MAGIC):
             # Handle zip files
-            if mode in ('update', 'append'):
-                raise IOError(
-                      "Writing to zipped fits files is not currently "
-                      "supported")
-            zfile = zipfile.ZipFile(self.name)
-            namelist = zfile.namelist()
-            if len(namelist) != 1:
-                raise IOError(
-                  "Zip files with multiple members are not supported.")
-            self.__file = tempfile.NamedTemporaryFile(suffix='.fits')
-            self.__file.write(zfile.read(namelist[0]))
-            zfile.close()
-            self.compression = 'zip'
+            self._open_zipfile(self.name, mode)
         else:
             self.__file = fileobj_open(self.name, PYFITS_MODES[mode])
             # Make certain we're back at the beginning of the file
         self.__file.seek(0)
+
+    def _open_zipfile(self, fileobj, mode):
+        """Limited support for zipfile.ZipFile objects containing a single
+        a file.  Allows reading only for now by extracting the file to a
+        tempfile.
+        """
+
+        if mode in ('update', 'append'):
+            raise IOError(
+                  "Writing to zipped fits files is not currently "
+                  "supported")
+
+        if not isinstance(fileobj, zipfile.ZipFile):
+            zfile = zipfile.ZipFile(fileobj)
+            close = True
+        else:
+            zfile = fileobj
+            close = False
+
+        namelist = zfile.namelist()
+        if len(namelist) != 1:
+            raise IOError(
+              "Zip files with multiple members are not supported.")
+        self.__file = tempfile.NamedTemporaryFile(suffix='.fits')
+        self.__file.write(zfile.read(namelist[0]))
+
+        if close:
+            zfile.close()
+        self.compression = 'zip'
 
 
 def _is_random_access_file_backed(fileobj):
