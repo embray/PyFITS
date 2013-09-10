@@ -9,16 +9,16 @@ from numpy import memmap as Memmap
 
 import pyfits
 from pyfits.card import Card
-from pyfits.file import PYTHON_MODES, _File
+from pyfits.file import _File
 from pyfits.hdu import compressed
 from pyfits.hdu.base import _BaseHDU, _ValidHDU, _NonstandardHDU, ExtensionHDU
 from pyfits.hdu.compressed import CompImageHDU
 from pyfits.hdu.groups import GroupsHDU
 from pyfits.hdu.image import PrimaryHDU, ImageHDU
 from pyfits.hdu.table import _TableBaseHDU
-from pyfits.util import (_is_int, _tmp_name, _pad_length, BLOCK_SIZE, isfile,
-                         fileobj_name, fileobj_closed, fileobj_mode,
-                         ignore_sigint, _get_array_mmap, indent)
+from pyfits.util import (_is_int, _tmp_name, _pad_length, BLOCK_SIZE,
+                         ignore_sigint, _get_array_mmap, indent,
+                         fileobj_closed)
 from pyfits.verify import _Verify, _ErrList, VerifyError, VerifyWarning
 
 
@@ -35,9 +35,8 @@ def fitsopen(name, mode='readonly', memmap=None, save_backup=False, **kwargs):
         'ostream'.
 
         If `name` is a file object that is already opened, `mode` must
-        match the mode the file was opened with, copyonwrite (rb),
-        readonly (rb), update (rb+), append (ab+), ostream (w),
-        denywrite (rb)).
+        match the mode the file was opened with, readonly (rb), update (rb+),
+        append (ab+), ostream (w), denywrite (rb)).
 
     memmap : bool
         Is memory mapping to be used?
@@ -306,7 +305,7 @@ class HDUList(list, _Verify):
             file       File object associated with the HDU
             filename   Name of associated file object
             filemode   Mode in which the file was opened (readonly,
-                       copyonwrite, update, append, denywrite, ostream)
+                       update, append, denywrite, ostream)
             resized    Flag that when `True` indicates that the data has been
                        resized since the last read/write so the returned values
                        may not be valid.
@@ -612,8 +611,8 @@ class HDUList(list, _Verify):
         Parameters
         ----------
         fileobj : file path, file object or file-like object
-            File to write to.  If a file object, must be opened for
-            append (ab+).
+            File to write to.  If a file object, must be opened in a
+            writeable mode.
 
         output_verify : str
             Output verification option.  Must be one of ``"fix"``,
@@ -634,38 +633,19 @@ class HDUList(list, _Verify):
 
         self.verify(option=output_verify)
 
-        # check if the file object is closed
-        closed = fileobj_closed(fileobj)
-        fmode = fileobj_mode(fileobj) or 'ab+'
-        filename = fileobj_name(fileobj)
-
-        # check if the output file already exists
-        if (isfile(fileobj) or
-            isinstance(fileobj, (basestring, gzip.GzipFile))):
-            if (os.path.exists(filename) and os.path.getsize(filename) != 0):
-                if clobber:
-                    warnings.warn("Overwriting existing file '%s'." % filename)
-                    if not closed:
-                        fileobj.close()
-                    os.remove(filename)
-                else:
-                    raise IOError("File '%s' already exists." % filename)
-        elif (hasattr(fileobj, 'len') and fileobj.len > 0):
-            if clobber:
-                warnings.warn("Overwriting existing file '%s'." % filename)
-                name.truncate(0)
-            else:
-                raise IOError("File '%s' already exists." % filename)
-
         # make sure the EXTEND keyword is there if there is extension
         self.update_extend()
 
-        mode = 'copyonwrite'
-        for key, val in PYTHON_MODES.iteritems():
-            if val == fmode:
-                mode = key
-                break
+        # make note of whether the input file object is already open, in which
+        # case we should not close it after writing (that should be the job
+        # of the caller)
+        closed = fileobj_closed(fileobj)
 
+        # writeto is only for writing a new file from scratch, so the most
+        # sensible mode to require is 'ostream'.  This can accept an open
+        # file object that's open to write only, or in append/update modes
+        # but only if the file doesn't exist.
+        fileobj = _File(fileobj, mode='ostream', clobber=clobber)
         hdulist = self.fromfile(fileobj)
 
         for hdu in self:
@@ -674,6 +654,7 @@ class HDUList(list, _Verify):
                 hdu._writeto(hdulist.__file)
             finally:
                 hdu._postwriteto()
+
         hdulist.close(output_verify=output_verify, closed=closed)
 
     def close(self, output_verify='exception', verbose=False, closed=True):
@@ -772,11 +753,14 @@ class HDUList(list, _Verify):
         """
 
         if fileobj is not None:
-            # instantiate a FITS file object (ffo)
-            ffo = _File(fileobj, mode=mode, memmap=memmap)
+            if not isinstance(fileobj, _File):
+                # instantiate a FITS file object (ffo)
+                ffo = _File(fileobj, mode=mode, memmap=memmap)
+            else:
+                ffo = fileobj
             # The pyfits mode is determined by the _File initializer if the
             # supplied mode was None
-            mode = ff.mode
+            mode = ffo.mode
             hdulist = cls(file=ffo)
         else:
             if mode is None:

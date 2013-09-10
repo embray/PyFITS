@@ -394,8 +394,6 @@ class TestCore(PyfitsTestCase):
         assert_raises(TypeError, setattr, h1, 'level', 'BAR')
 
 
-
-
 class TestConvenienceFunctions(PyfitsTestCase):
     def test_writeto(self):
         """
@@ -571,10 +569,15 @@ class TestStreamingFunctions(PyfitsTestCase):
     def test_streaming_hdu_file_wrong_mode(self):
         """
         Test that streaming an HDU to a file opened in the wrong mode fails as
-        expected.
+        expected (any writeable mode is acceptable; any read-only mode should
+        fail).
         """
 
-        with open(self.temp('new.fits'), 'wb') as f:
+        # touch new.fits
+        with open(self.temp('new.fits'), 'wb'):
+            pass
+
+        with open(self.temp('new.fits'), 'rb') as f:
             header = fits.Header()
             assert_raises(ValueError, fits.StreamingHDU, f, header)
 

@@ -57,14 +57,14 @@ import os
 
 import numpy as np
 
-from pyfits.file import PYFITS_MODES, _File
+from pyfits.file import FILE_MODES, _File
 from pyfits.hdu.base import _BaseHDU, _ValidHDU
 from pyfits.hdu.hdulist import fitsopen
 from pyfits.hdu.image import PrimaryHDU, ImageHDU
 from pyfits.hdu.table import BinTableHDU
 from pyfits.header import Header
-from pyfits.util import (deprecated, fileobj_closed, fileobj_name, isfile,
-                         _is_int)
+from pyfits.util import (deprecated, fileobj_closed, fileobj_name,
+                         fileobj_mode, fileobj_closed, _is_int)
 
 
 __all__ = ['getheader', 'getdata', 'getval', 'setval', 'delval', 'writeto',
@@ -544,7 +544,7 @@ def info(filename, output=None, **kwargs):
         *Note:* This function sets ``ignore_missing_end=True`` by default.
     """
 
-    mode, closed = _get_file_mode(filename, default='copyonwrite')
+    mode, closed = _get_file_mode(filename, default='readonly')
     # Set the default value for the ignore_missing_end parameter
     if not 'ignore_missing_end' in kwargs:
         kwargs['ignore_missing_end'] = True
@@ -602,7 +602,7 @@ def tabledump(filename, datafile=None, cdfile=None, hfile=None, ext=1,
     # and leave the file in the same state (opened or closed) as when
     # the function was called
 
-    mode, closed = _get_file_mode(filename, default='copyonwrite')
+    mode, closed = _get_file_mode(filename, default='readonly')
     f = fitsopen(filename, mode=mode)
 
     # Create the default data file name if one was not provided
@@ -774,8 +774,7 @@ def _stat_filename_or_fileobj(filename):
     return name, closed, noexist_or_empty
 
 
-# TODO: Replace this with fileobj_mode
-def _get_file_mode(filename, default='copyonwrite'):
+def _get_file_mode(filename, default='readonly'):
     """
     Allow file object to already be opened in any of the valid modes and
     and leave the file in the same state (opened or closed) as when
@@ -783,23 +782,14 @@ def _get_file_mode(filename, default='copyonwrite'):
     """
 
     mode = default
-    closed = True
+    closed = fileobj_closed(filename)
 
-    if hasattr(filename, 'closed'):
-        closed = filename.closed
-    elif hasattr(filename, 'fileobj') and filename.fileobj is not None:
-        closed = filename.fileobj.closed
-
-    if (isfile(filename) or
-        isinstance(filename, gzip.GzipFile) and not closed):
-        if isinstance(filename, gzip.GzipFile):
-            file_mode = filename.fileobj.mode
-        else:
-            file_mode = filename.mode
-
-        for key, val in PYFITS_MODES.iteritems():
-            if val == file_mode:
-                mode = key
-                break
+    fmode = fileobj_mode(filename)
+    if fmode is not None:
+        mode = FILE_MODES.get(fmode)
+        if mode is None:
+            raise IOError(
+                "File mode of the input file object (%r) cannot be used to "
+                "read/write FITS files." % fmode)
 
     return mode, closed
