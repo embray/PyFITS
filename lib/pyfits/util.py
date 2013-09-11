@@ -627,7 +627,7 @@ if sys.platform.startswith('win32'):
         # _sizeof_ioinfo = None is set
         global _sizeof_ioinfo
         if __pioinfo[0] is not None:
-            _sizeof_ioinfo = _msize(__pioinfo[0]) / IOINFO_ARRAY_ELTS
+            _sizeof_ioinfo = _msize(__pioinfo[0]) // IOINFO_ARRAY_ELTS
 
         if not _sizeof_ioinfo:
             # This shouldn't happen, but I suppose it could if one is using a
