@@ -30,6 +30,10 @@
 
 
 #if CFITSIO_MAJOR >= 3
+    #if CFITSIO_MINOR >= 35
+        #define CFITSIO_SUPPORTS_Q_FORMAT_COMPRESSION
+        #define CFITSIO_SUPPORTS_SUBTRACTIVE_DITHER_2
+    #endif
     #if CFITSIO_MINOR >= 28
         #define CFITSIO_SUPPORTS_GZIPDATA
     #else
@@ -42,9 +46,6 @@
 #endif
 
 
-#define CFITSIO_LOSSLESS_COMP_SUPPORTED_VERS 3.22
-
-
 /* These defaults mirror the defaults in pyfits.hdu.compressed */
 #define DEFAULT_COMPRESSION_TYPE "RICE_1"
 #define DEFAULT_QUANTIZE_LEVEL 16.0
@@ -52,8 +53,5 @@
 #define DEFAULT_HCOMP_SMOOTH 0
 #define DEFAULT_BLOCK_SIZE 32
 #define DEFAULT_BYTE_PIX 4
-
-/* This constant is defined by cfitsio in imcompress.c */
-#define NO_QUANTIZE 9999
 
 #endif

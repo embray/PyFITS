@@ -99,7 +99,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdul = fits.HDUList()
         hdul1 = fits.open(self.data('tb.fits'))
         hdul.append(hdul1[1])
-        info = [(0, 'PRIMARY', 'PrimaryHDU', 4, (), 'uint8', ''),
+        info = [(0, 'PRIMARY', 'PrimaryHDU', 4, (), '', ''),
                 (1, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', '')]
 
         assert hdul.info(output=False) == info
@@ -115,7 +115,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdu = fits.GroupsHDU()
         hdul.append(hdu)
 
-        info = [(0, 'PRIMARY', 'GroupsHDU', 8, (), 'uint8',
+        info = [(0, 'PRIMARY', 'GroupsHDU', 8, (), '',
                  '1 Groups  0 Parameters')]
 
         assert hdul.info(output=False) == info
@@ -146,7 +146,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdul = fits.open(self.data('tb.fits'))
         hdul.append(hdul[1])
 
-        info = [(0, 'PRIMARY', 'PrimaryHDU', 11, (), 'int16', ''),
+        info = [(0, 'PRIMARY', 'PrimaryHDU', 11, (), '', ''),
                 (1, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', ''),
                 (2, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', '')]
 
@@ -202,7 +202,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdul1 = fits.open(self.data('tb.fits'))
         hdul.insert(0, hdul1[1])
 
-        info = [(0, 'PRIMARY', 'PrimaryHDU', 4, (), 'uint8', ''),
+        info = [(0, 'PRIMARY', 'PrimaryHDU', 4, (), '', ''),
                 (1, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', '')]
 
         assert hdul.info(output=False) == info
@@ -218,7 +218,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdu = fits.GroupsHDU()
         hdul.insert(0, hdu)
 
-        info = [(0, 'PRIMARY', 'GroupsHDU', 8, (), 'uint8',
+        info = [(0, 'PRIMARY', 'GroupsHDU', 8, (), '',
                  '1 Groups  0 Parameters')]
 
         assert hdul.info(output=False) == info
@@ -249,7 +249,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdul = fits.open(self.data('tb.fits'))
         hdul.insert(1, hdul[1])
 
-        info = [(0, 'PRIMARY', 'PrimaryHDU', 11, (), 'int16', ''),
+        info = [(0, 'PRIMARY', 'PrimaryHDU', 11, (), '', ''),
                 (1, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', ''),
                 (2, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', '')]
 
@@ -269,7 +269,7 @@ class TestHDUListFunctions(PyfitsTestCase):
 
         assert_raises(ValueError, hdul.insert, 1, hdu)
 
-        info = [(0, 'PRIMARY', 'GroupsHDU', 8, (), 'uint8',
+        info = [(0, 'PRIMARY', 'GroupsHDU', 8, (), '',
                  '1 Groups  0 Parameters'),
                 (1, '', 'ImageHDU', 6, (100,), 'int32', '')]
 
@@ -298,9 +298,9 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdul = fits.open(self.data('tb.fits'))
         hdul.insert(0, hdul[1])
 
-        info = [(0, 'PRIMARY', 'PrimaryHDU', 4, (), 'uint8', ''),
+        info = [(0, 'PRIMARY', 'PrimaryHDU', 4, (), '', ''),
                 (1, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', ''),
-                (2, '', 'ImageHDU', 12, (), 'uint8', ''),
+                (2, '', 'ImageHDU', 12, (), '', ''),
                 (3, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', '')]
 
         assert hdul.info(output=False) == info
@@ -320,7 +320,7 @@ class TestHDUListFunctions(PyfitsTestCase):
         hdul.insert(0, hdu)
 
         info = [(0, 'PRIMARY', 'PrimaryHDU', 5, (100,), 'int32', ''),
-                (1, '', 'ImageHDU', 12, (), 'uint8', ''),
+                (1, '', 'ImageHDU', 12, (), '', ''),
                 (2, '', 'BinTableHDU', 24, '2R x 4C', '[1J, 3A, 1E, 1L]', '')]
 
         assert hdul.info(output=False) == info
@@ -671,3 +671,83 @@ class TestHDUListFunctions(PyfitsTestCase):
 
         assert os.path.exists(self.temp('scale.fits.bak'))
         assert os.path.exists(self.temp('scale.fits.bak.1'))
+
+    def test_replace_mmap_data(self):
+        """Regression test for
+        https://github.com/spacetelescope/PyFITS/issues/25
+
+        Replacing the mmap'd data of one file with mmap'd data from a
+        different file should work.
+        """
+
+        arr_a = np.arange(10)
+        arr_b = arr_a * 2
+
+        def test(mmap_a, mmap_b):
+            hdu_a = fits.PrimaryHDU(data=arr_a)
+            hdu_a.writeto(self.temp('test_a.fits'), clobber=True)
+            hdu_b = fits.PrimaryHDU(data=arr_b)
+            hdu_b.writeto(self.temp('test_b.fits'), clobber=True)
+
+            hdul_a = fits.open(self.temp('test_a.fits'), mode='update',
+                               memmap=mmap_a)
+            hdul_b = fits.open(self.temp('test_b.fits'), memmap=mmap_b)
+            hdul_a[0].data = hdul_b[0].data
+            hdul_a.close()
+            hdul_b.close()
+
+            hdul_a = fits.open(self.temp('test_a.fits'))
+
+            assert np.all(hdul_a[0].data == arr_b)
+
+        with ignore_warnings():
+            test(True, True)
+
+            # Repeat the same test but this time don't mmap A
+            test(False, True)
+
+            # Finally, without mmaping B
+            test(True, False)
+
+
+    def test_replace_mmap_data_2(self):
+        """Regression test for
+        https://github.com/spacetelescope/PyFITS/issues/25
+
+        Replacing the mmap'd data of one file with mmap'd data from a
+        different file should work.  Like test_replace_mmap_data but with
+        table data instead of image data.
+        """
+
+        arr_a = np.arange(10)
+        arr_b = arr_a * 2
+
+        def test(mmap_a, mmap_b):
+            col_a = fits.Column(name='a', format='J', array=arr_a)
+            col_b = fits.Column(name='b', format='J', array=arr_b)
+            hdu_a = fits.new_table([col_a])
+            hdu_a.writeto(self.temp('test_a.fits'), clobber=True)
+            hdu_b = fits.new_table([col_b])
+            hdu_b.writeto(self.temp('test_b.fits'), clobber=True)
+
+            hdul_a = fits.open(self.temp('test_a.fits'), mode='update',
+                               memmap=mmap_a)
+            hdul_b = fits.open(self.temp('test_b.fits'), memmap=mmap_b)
+            hdul_a[1].data = hdul_b[1].data
+            hdul_a.close()
+            hdul_b.close()
+
+            hdul_a = fits.open(self.temp('test_a.fits'))
+
+            assert 'b' in hdul_a[1].columns.names
+            assert 'a' not in hdul_a[1].columns.names
+            assert np.all(hdul_a[1].data['b'] == arr_b)
+
+        with ignore_warnings():
+            test(True, True)
+
+            # Repeat the same test but this time don't mmap A
+            test(False, True)
+
+            # Finally, without mmaping B
+            test(True, False)

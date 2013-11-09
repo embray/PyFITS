@@ -33,7 +33,14 @@ if sys.version_info[0] >= 3:  # pragma: py3
             # array, hence the view() call
             # It also doesn't necessarily preserve widths of the strings,
             # hence the astype()
-            ns = numpy.char.decode(s, 'ascii').view(type(s))
+            if s.size == 0:
+                # Numpy apparently also has a bug that if a string array is
+                # empty calling np.char.decode on it returns an empty float64
+                # array wth
+                dt = s.dtype.str.replace('S', 'U')
+                ns = numpy.array([], dtype=dt).view(type(s))
+            else:
+                ns = numpy.char.decode(s, 'ascii').view(type(s))
             if ns.dtype.itemsize / 4 != s.dtype.itemsize:
                 ns = ns.astype((numpy.str_, s.dtype.itemsize))
             return ns
@@ -90,14 +97,14 @@ if sys.version_info[0] >= 3:  # pragma: py3
 
     class chararray(_chararray):
         def __getitem__(self, obj):
-                val = numpy.ndarray.__getitem__(self, obj)
-                if isinstance(val, numpy.character):
-                    temp = val.rstrip()
-                    if numpy.char._len(temp) == 0:
-                        val = ''
-                    else:
-                        val = temp
-                return val
+            val = numpy.ndarray.__getitem__(self, obj)
+            if isinstance(val, numpy.character):
+                temp = val.rstrip()
+                if numpy.char._len(temp) == 0:
+                    val = ''
+                else:
+                    val = temp
+            return val
     for m in [numpy.char, numpy.core.defchararray, numpy.core.records]:
         m.chararray = chararray
 

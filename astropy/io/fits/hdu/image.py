@@ -4,7 +4,7 @@ import numpy as np
 from pyfits.hdu.base import DELAYED, _ValidHDU, ExtensionHDU
 from pyfits.header import Header
 from pyfits.util import (_is_pseudo_unsigned, _unsigned_zero, _is_int,
-                         _pad_length, _normalize_slice, lazyproperty)
+                         _normalize_slice, lazyproperty)
 
 
 class _ImageBaseHDU(_ValidHDU):
@@ -17,12 +17,6 @@ class _ImageBaseHDU(_ValidHDU):
 
     data
         image data
-
-    _file
-        file associated with array
-
-    _datLoc
-        starting byte location of data block in file
     """
 
     # mappings between FITS and numpy typecodes
@@ -135,6 +129,11 @@ class _ImageBaseHDU(_ValidHDU):
         self._modified = False
 
         if data is DELAYED:
+            if (not do_not_scale_image_data and
+                    (self._bscale != 1 or self._bzero != 0)):
+                # This indicates that when the data is accessed or written out
+                # to a new file it will need to be rescaled
+                self._data_needs_rescale = True
             return
         else:
             self.data = data
@@ -194,16 +193,22 @@ class _ImageBaseHDU(_ValidHDU):
         if len(self._axes) < 1:
             return
 
-        data = self._get_scaled_image_data(self._datLoc, self.shape)
+        data = self._get_scaled_image_data(self._data_offset, self.shape)
         self._update_header_scale_info(data.dtype)
 
         return data
 
     @data.setter
     def data(self, data):
-        self.__dict__['data'] = data
-        self._modified = True
-        if self.data is not None and not isinstance(data, np.ndarray):
+        if 'data' in self.__dict__:
+            if self.__dict__['data'] is data:
+                return
+            else:
+                self._data_replaced = True
+        else:
+            self._data_replaced = True
+
+        if data is not None and not isinstance(data, np.ndarray):
             # Try to coerce the data into a numpy array--this will work, on
             # some level, for most objects
             try:
@@ -211,6 +216,9 @@ class _ImageBaseHDU(_ValidHDU):
             except:
                 raise TypeError('data object %r could not be coerced into an '
                                 'ndarray' % data)
+
+        self.__dict__['data'] = data
+        self._modified = True
 
         if isinstance(data, np.ndarray):
             self._bitpix = _ImageBaseHDU.ImgCode[data.dtype.name]
@@ -226,13 +234,17 @@ class _ImageBaseHDU(_ValidHDU):
 
         self.update_header()
 
+        # returning the data signals to lazyproperty that we've already handled
+        # setting self.__dict__['data']
+        return data
+
     def update_header(self):
         """
         Update the header keywords to agree with the data.
         """
 
         if not (self._modified or self._header._modified or
-                (self._data_loaded and self.shape != self.data.shape)):
+                (self._has_data and self.shape != self.data.shape)):
             # Not likely that anything needs updating
             return
 
@@ -250,7 +262,7 @@ class _ImageBaseHDU(_ValidHDU):
         # If the data's shape has changed (this may have happened without our
         # noticing either via a direct update to the data.shape attribute) we
         # need to update the internal self._axes
-        if self._data_loaded and self.shape != self.data.shape:
+        if self._has_data and self.shape != self.data.shape:
             self._axes = list(self.data.shape)
             self._axes.reverse()
 
@@ -421,7 +433,7 @@ class _ImageBaseHDU(_ValidHDU):
             self.scale(self.NumCode[self._orig_bitpix])
 
         self.update_header()
-        if not inplace and not self._data_loaded:
+        if not inplace and not self._has_data:
             self._update_header_scale_info()
         return super(_ImageBaseHDU, self)._prewriteto(checksum, inplace)
 
@@ -578,8 +590,12 @@ class _ImageBaseHDU(_ValidHDU):
                 format = self.data.dtype.name
                 format = format[format.rfind('.')+1:]
         else:
-            # if data is not touched yet, use header info.
-            format = self.NumCode[self._bitpix]
+            if self.shape and all(self.shape):
+                # Only show the format if all the dimensions are non-zero
+                # if data is not touched yet, use header info.
+                format = self.NumCode[self._bitpix]
+            else:
+                format = ''
 
         # Display shape in FITS-order
         shape = tuple(reversed(self.shape))
@@ -591,7 +607,7 @@ class _ImageBaseHDU(_ValidHDU):
         Calculate the value for the ``DATASUM`` card in the HDU.
         """
 
-        if self._data_loaded and self.data is not None:
+        if self._has_data:
             # We have the data to be used.
             d = self.data
 
@@ -693,7 +709,7 @@ class Section(object):
 
             dims = tuple(dims)
             bitpix = self.hdu._orig_bitpix
-            offset = self.hdu._datLoc + (offset * abs(bitpix) // 8)
+            offset = self.hdu._data_offset + (offset * abs(bitpix) // 8)
             data = self.hdu._get_scaled_image_data(offset, dims)
         else:
             data = self._getdata(key)
@@ -702,15 +718,14 @@ class Section(object):
 
     def _getdata(self, keys):
         out = []
-        naxis = len(self.hdu.shape)
 
         # Determine the number of slices in the set of input keys.
         # If there is only one slice then the result is a one dimensional
         # array, otherwise the result will be a multidimensional array.
-        numSlices = 0
+        n_slices = 0
         for idx, key in enumerate(keys):
             if isinstance(key, slice):
-                numSlices = numSlices + 1
+                n_slices = n_slices + 1
 
         for idx, key in enumerate(keys):
             if isinstance(key, slice):
@@ -724,7 +739,7 @@ class Section(object):
                     key1[idx] = k
                     key1 = tuple(key1)
 
-                    if numSlices > 1:
+                    if n_slices > 1:
                         # This is not the only slice in the list of keys so
                         # we simply get the data for this section and append
                         # it to the list that is output.  The out variable will
@@ -757,6 +772,8 @@ class PrimaryHDU(_ImageBaseHDU):
     """
     FITS primary HDU class.
     """
+
+    _default_name = 'PRIMARY'
 
     def __init__(self, data=None, header=None, do_not_scale_image_data=False,
                  uint=False, scale_back=False):
@@ -794,9 +811,6 @@ class PrimaryHDU(_ImageBaseHDU):
             data=data, header=header,
             do_not_scale_image_data=do_not_scale_image_data, uint=uint,
             scale_back=scale_back)
-
-        self._name = 'PRIMARY'
-        self._extver = 1
 
         # insert the keywords EXTEND
         if header is None:

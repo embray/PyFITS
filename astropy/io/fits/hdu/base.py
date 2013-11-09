@@ -4,7 +4,6 @@ from __future__ import division
 import datetime
 import inspect
 import os
-import re
 import warnings
 
 import numpy as np
@@ -15,8 +14,8 @@ from pyfits.file import _File
 from pyfits.header import Header, HEADER_END_RE
 from pyfits.util import (lazyproperty, _is_int, _is_pseudo_unsigned,
                          _unsigned_zero, _pad_length, itersubclasses,
-                         encode_ascii, decode_ascii, BLOCK_SIZE, deprecated,
-                         _get_array_mmap)
+                         encode_ascii, decode_ascii, deprecated,
+                         _get_array_mmap, _array_to_file)
 from pyfits.verify import _Verify, _ErrList
 
 
@@ -77,6 +76,8 @@ class _BaseHDU(object):
     # Byte to use for padding out blocks
     _padding_byte = '\x00'
 
+    _default_name = ''
+
     def __new__(cls, data=None, header=None, *args, **kwargs):
         """
         Iterates through the subclasses of _BaseHDU and uses that class's
@@ -95,22 +96,28 @@ class _BaseHDU(object):
         return super(_BaseHDU, cls).__new__(klass)
 
     def __init__(self, data=None, header=None, *args, **kwargs):
+        if header is None:
+            header = Header()
         self._header = header
         self._file = None
         self._buffer = None
-        self._hdrLoc = None
-        self._datLoc = None
-        self._datSpan = None
+        self._header_offset = None
+        self._data_offset = None
+        self._data_size = None
+
+        # This internal variable is used to track whether the data attribute
+        # still points to the same data array as when the HDU was originally
+        # created (this does not track whether the data is actually the same
+        # content-wise)
+        self._data_replaced = False
+        self._data_needs_rescale = False
         self._new = True
         self._output_checksum = False
 
-        if self._header:
-            if 'DATASUM' in self._header and 'CHECKSUM' not in self._header:
-                self._output_checksum = 'datasum'
-            elif 'CHECKSUM' in self._header:
-                self._output_checksum = True
-
-        self._name = ''
+        if 'DATASUM' in self._header and 'CHECKSUM' not in self._header:
+            self._output_checksum = 'datasum'
+        elif 'CHECKSUM' in self._header:
+            self._output_checksum = True
 
     @property
     def header(self):
@@ -122,13 +129,46 @@ class _BaseHDU(object):
 
     @property
     def name(self):
-        return self._name
+        # Convert the value to a string to be flexible in some pathological
+        # cases (see ticket #96)
+        return str(self._header.get('EXTNAME', self._default_name))
 
     @name.setter
     def name(self, value):
         if not isinstance(value, basestring):
             raise TypeError("'name' attribute must be a string")
-        self._name = value
+        if not pyfits.EXTENSION_NAME_CASE_SENSITIVE:
+            value = value.upper()
+        if 'EXTNAME' in self._header:
+            self._header['EXTNAME'] = value
+        else:
+            self._header['EXTNAME'] = (value, 'extension name')
+
+    @property
+    def ver(self):
+        return self._header.get('EXTVER', 1)
+
+    @ver.setter
+    def ver(self, value):
+        if not _is_int(value):
+            raise TypeError("'ver' attribute must be an integer")
+        if 'EXTVER' in self._header:
+            self._header['EXTVER'] = value
+        else:
+            self._header['EXTVER'] = (value, 'extension value')
+
+    @property
+    def level(self):
+        return self._header.get('EXTLEVEL', 1)
+
+    @level.setter
+    def level(self, value):
+        if not _is_int(value):
+            raise TypeError("'level' attribute must be an integer")
+        if 'EXTLEVEL' in self._header:
+            self._header['EXTLEVEL'] = value
+        else:
+            self._header['EXTLEVEL'] = (value, 'extension level')
 
     @property
     def is_image(self):
@@ -141,8 +181,59 @@ class _BaseHDU(object):
 
     @property
     def _data_loaded(self):
-        return ('data' in self.__dict__ and self.data is not None and
-                self.data is not DELAYED)
+        return ('data' in self.__dict__ and self.data is not DELAYED)
+
+    @property
+    def _has_data(self):
+        return self._data_loaded and self.data is not None
+
+    @property
+    @deprecated('3.2', alternative='the `._header_offset` attribute',
+                pending=True)
+    def _hdrLoc(self):
+        """The byte offset of this HDU's header in the file it came from;
+        available for backwards compatibility--use ._header_offset instead.
+        """
+
+        return self._header_offset
+
+    @_hdrLoc.setter
+    @deprecated('3.2', alternative='the `._header_offset` attribute',
+                pending=True)
+    def _hdrLoc(self, value):
+        self._header_offset = value
+
+    @property
+    @deprecated('3.2', alternative='the `._data_offset` attribute',
+                pending=True)
+    def _datLoc(self):
+        """The byte offset of this HDU's data portion in the file it came from;
+        available for backwards compatibility--use ._data_offset instead.
+        """
+
+        return self._data_offset
+
+    @_datLoc.setter
+    @deprecated('3.2', alternative='the `._data_offset` attribute',
+                pending=True)
+    def _datLoc(self, value):
+        self._data_offset = value
+
+    @property
+    @deprecated('3.2', alternative='the `._data_size` attribute',
+                pending=True)
+    def _datSpan(self):
+        """The byte size of this HDU's data portion in the file it came from;
+        available for backwards compatibility--use ._data_size instead.
+        """
+
+        return self._data_size
+
+    @_datSpan.setter
+    @deprecated('3.2', alternative='the `._data_size` attribute',
+                pending=True)
+    def _datSpan(self, value):
+        self._data_size = value
 
     @classmethod
     def register_hdu(cls, hducls):
@@ -260,15 +351,15 @@ class _BaseHDU(object):
             # Provide an underlying buffer to read the data from
             hdu._buffer = data
 
-        hdu._hdrLoc = offset                 # beginning of the header area
+        hdu._header_offset = offset            # beginning of the header area
         if fileobj:
-            hdu._datLoc = fileobj.tell()     # beginning of the data area
+            hdu._data_offset = fileobj.tell()  # beginning of the data area
         else:
-            hdu._datLoc = hdrlen
+            hdu._data_offset = hdrlen
 
         # data area size, including padding
         size = hdu.size
-        hdu._datSpan = size + _pad_length(size)
+        hdu._data_size = size + _pad_length(size)
 
         # Checksums are not checked on invalid HDU types
         if checksum and checksum != 'remove' and isinstance(hdu, _ValidHDU):
@@ -314,7 +405,7 @@ class _BaseHDU(object):
 
         # If the checksum had to be checked the data may have already been read
         # from the file, in which case we don't want to see relative
-        fileobj.seek(hdu._datLoc + hdu._datSpan, os.SEEK_SET)
+        fileobj.seek(hdu._data_offset + hdu._data_size, os.SEEK_SET)
         return hdu
 
     def writeto(self, name, output_verify='exception', clobber=False,
@@ -327,8 +418,8 @@ class _BaseHDU(object):
         Parameters
         ----------
         name : file path, file object or file-like object
-            Output FITS file.  If opened, must be opened for append
-            ("ab+")).
+            Output FITS file.  If the file object is already opened, it must
+            be opened in a writeable mode.
 
         output_verify : str
             Output verification option.  Must be one of ``"fix"``,
@@ -361,16 +452,28 @@ class _BaseHDU(object):
         if self._buffer:
             return np.ndarray(shape, dtype=code, buffer=self._buffer,
                               offset=offset)
-        else:
+        elif self._file:
             return self._file.readarray(offset=offset, dtype=code, shape=shape)
+        else:
+            return None
 
     # TODO: Rework checksum handling so that it's not necessary to add a
     # checksum argument here
     def _prewriteto(self, checksum=False, inplace=False):
-        # If the data is unsigned int 16, 32, or 64 add BSCALE/BZERO
-        # cards to header
-        if self._data_loaded and self.data is not None and \
-           self._standard and _is_pseudo_unsigned(self.data.dtype):
+        self._update_uint_scale_keywords()
+
+        # Handle checksum
+        self._update_checksum(checksum)
+
+
+    def _update_uint_scale_keywords(self):
+        """
+        If the data is unsigned int 16, 32, or 64 add BSCALE/BZERO cards to
+        header.
+        """
+
+        if (self._has_data and self._standard and
+                _is_pseudo_unsigned(self.data.dtype)):
             if 'GCOUNT' in self._header:
                 self._header.set('BSCALE', 1, after='GCOUNT')
             else:
@@ -378,36 +481,50 @@ class _BaseHDU(object):
             self._header.set('BZERO', _unsigned_zero(self.data.dtype),
                              after='BSCALE')
 
-        # Handle checksum
+    def _update_checksum(self, checksum, checksum_keyword='CHECKSUM',
+                         datasum_keyword='DATASUM'):
+        """Update the 'CHECKSUM' and 'DATASUM' keywords in the header (or
+        keywords with equivalent semantics given by the ``checksum_keyword``
+        and ``datasum_keyword`` arguments--see for example ``CompImageHDU``
+        for an example of why this might need to be overridden).
+        """
 
         # If the data is loaded it isn't necessarily 'modified', but we have no
         # way of knowing for sure
         modified = self._header._modified or self._data_loaded
 
         if checksum == 'remove':
-            if 'CHECKSUM' in self._header:
-                del self._header['CHECKSUM']
+            if checksum_keyword in self._header:
+                del self._header[checksum_keyword]
 
-            if 'DATASUM' in self._header:
-                del self._header['DATASUM']
+            if datasum_keyword in self._header:
+                del self._header[datasum_keyword]
         elif modified or self._new:
             if checksum == 'datasum':
-                self.add_datasum()
+                self.add_datasum(datasum_keyword=datasum_keyword)
             elif checksum == 'nonstandard_datasum':
-                self.add_datasum(blocking='nonstandard')
+                self.add_datasum(blocking='nonstandard',
+                                 datasum_keyword=datasum_keyword)
             elif checksum == 'test':
-                self.add_datasum(self._datasum_comment)
-                self.add_checksum(self._checksum_comment, True)
+                self.add_datasum(self._datasum_comment,
+                                 datasum_keyword=datasum_keyword)
+                self.add_checksum(self._checksum_comment, True,
+                                  checksum_keyword=checksum_keyword,
+                                  datasum_keyword=datasum_keyword)
             elif checksum == 'nonstandard':
-                self.add_checksum(blocking='nonstandard')
+                self.add_checksum(blocking='nonstandard',
+                                  checksum_keyword=checksum_keyword,
+                                  datasum_keyword=datasum_keyword)
             elif checksum:
-                self.add_checksum(blocking='standard')
+                self.add_checksum(blocking='standard',
+                                  checksum_keyword=checksum_keyword,
+                                  datasum_keyword=datasum_keyword)
 
     def _postwriteto(self):
         # If data is unsigned integer 16, 32 or 64, remove the
         # BSCALE/BZERO cards
-        if (self._data_loaded and self.data is not None and
-                self._standard and _is_pseudo_unsigned(self.data.dtype)):
+        if (self._has_data and self._standard and
+                _is_pseudo_unsigned(self.data.dtype)):
             for keyword in ('BSCALE', 'BZERO'):
                 try:
                     del self._header[keyword]
@@ -432,7 +549,7 @@ class _BaseHDU(object):
             size = len(str(self._header))
 
         # Update hdrLoc with the new offset
-        self._hdrLoc = offset
+        self._header_offset = offset
 
         return offset, size
 
@@ -449,24 +566,32 @@ class _BaseHDU(object):
             except IOError:
                 offset = 0
 
-        if self.data is not None:
-            size += self._writedata_internal(fileobj)
+        if self._data_loaded or self._data_needs_rescale:
+            if self.data is not None:
+                size += self._writedata_internal(fileobj)
             # pad the FITS data block
-            if size > 0 and not fileobj.simulateonly:
+            if size > 0:
                 padding = _pad_length(size) * self._padding_byte
                 # TODO: Not that this is ever likely, but if for some odd
                 # reason _padding_byte is > 0x80 this will fail; but really if
                 # somebody's custom fits format is doing that, they're doing it
                 # wrong and should be reprimanded harshly.
                 fileobj.write(padding.encode('ascii'))
+                size += len(padding)
+        else:
+            # The data has not been modified or does not need need to be
+            # rescaled, so it can be copied, unmodified, directly from an
+            # existing file or buffer
+            size += self._writedata_direct_copy(fileobj)
+
 
         # flush, to make sure the content is written
         if not fileobj.simulateonly:
             fileobj.flush()
 
         # Update datLoc with the new offset
-        self._datLoc = offset
-        self._datSpan = size = size + _pad_length(size)
+        self._data_offset = offset
+        self._data_size = size
 
         # return both the location and the size of the data area
         return offset, size
@@ -484,6 +609,24 @@ class _BaseHDU(object):
             fileobj.writearray(self.data)
         return self.data.size * self.data.itemsize
 
+    def _writedata_direct_copy(self, fileobj):
+        """Copies the data directly from one file/buffer to the new file.
+
+        For now this is handled by loading the raw data from the existing data
+        (including any padding) via a memory map or from an already in-memory
+        buffer and using Numpy's existing file-writing facilities to write to
+        the new file.
+
+        If this proves too slow a more direct approach may be used.
+        """
+
+        raw = self._get_raw_data(self._data_size, 'ubyte', self._data_offset)
+        if raw is not None:
+            _array_to_file(raw, fileobj)
+            return raw.nbytes
+        else:
+            return 0
+
     # TODO: This is the start of moving HDU writing out of the _File class;
     # Though right now this is an internal private method (though still used by
     # HDUList, eventually the plan is to have this be moved into writeto()
@@ -495,10 +638,10 @@ class _BaseHDU(object):
             self._writedata(fileobj)
             return
 
-        hdrloc = self._hdrLoc
-        hdrsize = self._datLoc - self._hdrLoc
-        datloc = self._datLoc
-        datsize = self._datSpan
+        hdrloc = self._header_offset
+        hdrsize = self._data_offset - self._header_offset
+        datloc = self._data_offset
+        datsize = self._data_size
 
         if self._header._modified:
             # Seek to the original header location in the file
@@ -520,12 +663,13 @@ class _BaseHDU(object):
             # The header size is unchanged, but the data location may be
             # different from before depending on if previous HDUs were resized
             datloc = fileobj.tell()
+
         if self._data_loaded:
             if self.data is not None:
                 # Seek through the array's bases for an memmap'd array; we
                 # can't rely on the _File object to give us this info since the
                 # user may have replaced the previous mmap'd array
-                if copy:
+                if copy or self._data_replaced:
                     # Of course, if we're copying the data to a new file we
                     # don't care about flushing the original mmap; instead just
                     # read it into the new file
@@ -536,16 +680,15 @@ class _BaseHDU(object):
                 if array_mmap is not None:
                     array_mmap.flush()
                 else:
-                    self._file.seek(self._datLoc)
+                    self._file.seek(self._data_offset)
                     datloc, datsize = self._writedata(fileobj)
         elif copy:
-            # Seek to the data location in the original file
-            self._file.seek(self._datLoc)
-            fileobj.write(self._file.read(datsize))
+            datsize = self._writedata_direct_copy(fileobj)
 
-        self._hdrLoc = hdrloc
-        self._datLoc = datloc
-        self._datSpan = datsize + _pad_length(datsize)
+        self._header_offset = hdrloc
+        self._data_offset = datloc
+        self._data_size = datsize
+        self._data_replaced = False
 
 _AllHDU = _BaseHDU  # For backwards-compatibility, though nobody should have
                     # been using this directly
@@ -584,9 +727,9 @@ class _CorruptedHDU(_BaseHDU):
         # Note: On compressed files this might report a negative size; but the
         # file is corrupt anyways so I'm not too worried about it.
         if self._buffer is not None:
-            return len(self._buffer) - self._datLoc
+            return len(self._buffer) - self._data_offset
 
-        return self._file.size - self._datLoc
+        return self._file.size - self._data_offset
 
     def _summary(self):
         return (self.name, 'CorruptedHDU')
@@ -639,9 +782,9 @@ class _NonstandardHDU(_BaseHDU, _Verify):
         """
 
         if self._buffer is not None:
-            return len(self._buffer) - self._datLoc
+            return len(self._buffer) - self._data_offset
 
-        return self._file.size - self._datLoc
+        return self._file.size - self._data_offset
 
     def _writedata(self, fileobj):
         """
@@ -679,7 +822,7 @@ class _NonstandardHDU(_BaseHDU, _Verify):
         Return the file data.
         """
 
-        return self._get_raw_data(self.size, 'ubyte', self._datLoc)
+        return self._get_raw_data(self.size, 'ubyte', self._data_offset)
 
     def _verify(self, option='warn'):
         errs = _ErrList([], unit='Card')
@@ -700,29 +843,6 @@ class _ValidHDU(_BaseHDU, _Verify):
         super(_ValidHDU, self).__init__(data=data, header=header)
         if name is not None:
             self.name = name
-
-        if header and not hasattr(self, '_extver'):
-            self._extver = header.get('EXTVER', 1)
-
-    @property
-    def name(self):
-        # Convert the value to a string to be flexible in some pathological
-        # cases (see ticket #96)
-        if self._header and 'EXTNAME' in self._header:
-            self._name = str(self._header['EXTNAME'])
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        if not isinstance(value, basestring):
-            raise TypeError("'name' attribute must be a string")
-        if not pyfits.EXTENSION_NAME_CASE_SENSITIVE:
-            value = value.upper()
-        if self._header:
-            if 'EXTNAME' in self._header:
-                self._header['EXTNAME'] = value
-            else:
-                self._header.append(('EXTNAME', value, 'extension name'))
 
     @classmethod
     def match_header(cls, header):
@@ -808,8 +928,8 @@ class _ValidHDU(_BaseHDU, _Verify):
 
         if hasattr(self, '_file') and self._file:
             return {'file': self._file, 'filemode': self._file.mode,
-                    'hdrLoc': self._hdrLoc, 'datLoc': self._datLoc,
-                    'datSpan': self._datSpan}
+                    'hdrLoc': self._header_offset, 'datLoc': self._data_offset,
+                    'datSpan': self._data_size}
         else:
             return None
 
@@ -824,10 +944,8 @@ class _ValidHDU(_BaseHDU, _Verify):
             data = None
         return self.__class__(data=data, header=self._header.copy())
 
-    # TODO: self.name should be a property that updates the EXTNAME keyword
-    # automatically; likewise for self.version.  Likewise it should
-    # automatically get its value from the Header keyword.  This method should
-    # just be deprecated, as should update_ext_version
+    @deprecated('3.2', alternative='the `.name` attribute or `Header.set`',
+                pending=True)
     def update_ext_name(self, value, comment=None, before=None,
                         after=None, savecomment=False):
         """
@@ -864,12 +982,19 @@ class _ValidHDU(_BaseHDU, _Verify):
             preserved.
         """
 
-        if 'extname' in self._header and savecomment:
+        if 'EXTNAME' in self._header and savecomment:
             comment = None
 
         self._header.set('EXTNAME', value, comment, before, after)
+        # This may seem redundant, but the previous header.set call just
+        # handles anyone who might use the before/after keywords to set the
+        # position of the EXTNAME keyword.  Setting self.name = name does some
+        # additional processing on the value such as handling
+        # EXTENSION_NAME_CASE_SENSITIVE
         self.name = value
 
+    @deprecated('3.2', alternative='the `.ver` attribute or `Header.set`',
+                pending=True)
     def update_ext_version(self, value, comment=None, before=None,
                            after=None, savecomment=False):
         """
@@ -906,11 +1031,10 @@ class _ValidHDU(_BaseHDU, _Verify):
             preserved.
         """
 
-        if 'extver' in self._header and savecomment:
+        if 'EXTVER' in self._header and savecomment:
             comment = None
 
-        self._header.set('extver', value, comment, before, after)
-        self._extver = value
+        self._header.set('EXTVER', value, comment, before, after)
 
     def _verify(self, option='warn'):
         errs = _ErrList([], unit='Card')
@@ -1057,7 +1181,8 @@ class _ValidHDU(_BaseHDU, _Verify):
 
         return errs
 
-    def add_datasum(self, when=None, blocking='standard'):
+    def add_datasum(self, when=None, blocking='standard',
+                    datasum_keyword='DATASUM'):
         """
         Add the ``DATASUM`` card to this HDU with the value set to the
         checksum calculated for the data.
@@ -1071,6 +1196,11 @@ class _ValidHDU(_BaseHDU, _Verify):
         blocking: str, optional
             "standard" or "nonstandard", compute sum 2880 bytes at a time, or
             not
+
+        datasum_keyword: str, optional
+            The name of the header keyword to store the datasum value in;
+            this is typically 'DATASUM' per convention, but there exist
+            use cases in which a different keyword should be used
 
         Returns
         -------
@@ -1090,11 +1220,12 @@ class _ValidHDU(_BaseHDU, _Verify):
         if when is None:
             when = 'data unit checksum updated %s' % self._get_timestamp()
 
-        self._header['DATASUM'] = (str(cs), when)
+        self._header[datasum_keyword] = (str(cs), when)
         return cs
 
     def add_checksum(self, when=None, override_datasum=False,
-                     blocking='standard'):
+                     blocking='standard', checksum_keyword='CHECKSUM',
+                     datasum_keyword='DATASUM'):
         """
         Add the ``CHECKSUM`` and ``DATASUM`` cards to this HDU with
         the values set to the checksum calculated for the HDU and the
@@ -1114,6 +1245,14 @@ class _ValidHDU(_BaseHDU, _Verify):
             "standard" or "nonstandard", compute sum 2880 bytes at a time, or
             not
 
+        checksum_keyword: str, optional
+            The name of the header keyword to store the checksum value in; this
+            is typically 'CHECKSUM' per convention, but there exist use cases
+            in which a different keyword should be used
+
+        datasum_keyword: str, optional
+            See ``checksum_keyword``
+
         Notes
         -----
         For testing purposes, first call `add_datasum` with a `when`
@@ -1125,7 +1264,8 @@ class _ValidHDU(_BaseHDU, _Verify):
 
         if not override_datasum:
             # Calculate and add the data checksum to the header.
-            data_cs = self.add_datasum(when, blocking)
+            data_cs = self.add_datasum(when, blocking,
+                                       datasum_keyword=datasum_keyword)
         else:
             # Just calculate the data checksum
             data_cs = self._calculate_datasum(blocking)
@@ -1134,12 +1274,15 @@ class _ValidHDU(_BaseHDU, _Verify):
             when = 'HDU checksum updated %s' % self._get_timestamp()
 
         # Add the CHECKSUM card to the header with a value of all zeros.
-        if 'DATASUM' in self._header:
-            self._header.set('CHECKSUM', '0' * 16, when, before='DATASUM')
+        if datasum_keyword in self._header:
+            self._header.set(checksum_keyword, '0' * 16, when,
+                             before=datasum_keyword)
         else:
-            self._header.set('CHECKSUM', '0' * 16, when)
+            self._header.set(checksum_keyword, '0' * 16, when)
 
-        self._header['CHECKSUM'] = self._calculate_checksum(data_cs, blocking)
+        csum = self._calculate_checksum(data_cs, blocking,
+                                        checksum_keyword=checksum_keyword)
+        self._header[checksum_keyword] = csum
 
     def verify_datasum(self, blocking='standard'):
         """
@@ -1220,7 +1363,7 @@ class _ValidHDU(_BaseHDU, _Verify):
             self._checksum_comment = self._header.comments['CHECKSUM']
             if not self.verify_checksum(blocking):
                 warnings.warn('Checksum verification failed for HDU %s.\n' %
-                              ((self.name, self._extver),))
+                              ((self.name, self.ver),))
             del self._header['CHECKSUM']
         else:
             self._checksum = None
@@ -1232,7 +1375,7 @@ class _ValidHDU(_BaseHDU, _Verify):
 
             if not self.verify_datasum(blocking):
                 warnings.warn('Datasum verification failed for HDU %s.\n' %
-                              ((self.name, self._extver),))
+                              ((self.name, self.ver),))
             del self._header['DATASUM']
         else:
             self._checksum = None
@@ -1260,8 +1403,8 @@ class _ValidHDU(_BaseHDU, _Verify):
             # yet.  We find the data in the file, read it, and calculate the
             # datasum.
             if self.size > 0:
-                raw_data = self._get_raw_data(self._datSpan, 'ubyte',
-                                              self._datLoc)
+                raw_data = self._get_raw_data(self._data_size, 'ubyte',
+                                              self._data_offset)
                 return self._compute_checksum(raw_data, blocking=blocking)
             else:
                 return 0
@@ -1271,13 +1414,14 @@ class _ValidHDU(_BaseHDU, _Verify):
         else:
             return 0
 
-    def _calculate_checksum(self, datasum, blocking):
+    def _calculate_checksum(self, datasum, blocking,
+                            checksum_keyword='CHECKSUM'):
         """
         Calculate the value of the ``CHECKSUM`` card in the HDU.
         """
 
-        oldChecksum = self._header['CHECKSUM']
-        self._header['CHECKSUM'] = '0' * 16
+        old_checksum = self._header[checksum_keyword]
+        self._header[checksum_keyword] = '0' * 16
 
         # Convert the header to a string.
         s = str(self._header)
@@ -1290,7 +1434,7 @@ class _ValidHDU(_BaseHDU, _Verify):
         s = self._char_encode(~cs)
 
         # Return the header card value.
-        self._header['CHECKSUM'] = oldChecksum
+        self._header[checksum_keyword] = old_checksum
 
         return s
 
@@ -1534,7 +1678,7 @@ class NonstandardExtHDU(ExtensionHDU):
         Return the file data.
         """
 
-        return self._get_raw_data(self.size, 'ubyte', self._datLoc)
+        return self._get_raw_data(self.size, 'ubyte', self._data_offset)
 
 # TODO: Mark this as deprecated
 _NonstandardExtHDU = NonstandardExtHDU

@@ -3,7 +3,6 @@ from __future__ import division
 import copy
 import inspect
 import itertools
-import os
 import re
 import sys
 import warnings
@@ -11,9 +10,9 @@ import warnings
 from collections import defaultdict
 
 from pyfits.card import Card, CardList, BLANK_CARD, KEYWORD_LENGTH, _pad
-from pyfits.file import _File, PYTHON_MODES
+from pyfits.file import _File
 from pyfits.util import (BLOCK_SIZE, deprecated, isiterable, encode_ascii,
-                         decode_ascii, fileobj_mode, fileobj_is_binary,
+                         decode_ascii, fileobj_is_binary, fileobj_closed,
                          _pad_length)
 
 
@@ -211,9 +210,9 @@ class Header(object):
                     raise KeyError("Keyword '%s' not found." % key)
                 # Warn everyone else.
                 # TODO: Remove this warning and make KeyError the default after
-                # a couple versions (by 3.2 or 3.3, say)
+                # a couple versions (by 3.3, say)
                 warnings.warn(
-                    'Deletetion of non-existent keyword %r: '
+                    'Deletion of non-existent keyword %r: '
                     'In a future PyFITS version Header.__delitem__ may be '
                     'changed so that this raises a KeyError just like a dict '
                     'would. Please update your code so that KeyErrors are '
@@ -574,34 +573,10 @@ class Header(object):
             If `True`, overwrites the output file if it already exists
         """
 
-        close_file = False
-
-        # check if the output file already exists
-        # TODO: Perhaps this sort of thing could be handled by the _File
-        # initializer...
-        if isinstance(fileobj, basestring):
-            if os.path.exists(fileobj) and os.path.getsize(fileobj) != 0:
-                if clobber:
-                    warnings.warn("Overwriting existing file '%s'." % fileobj)
-                    os.remove(fileobj)
-                else:
-                    raise IOError("File '%s' already exists." % fileobj)
-
-            fileobj = open(fileobj, 'wb')
-            close_file = True
+        close_file = fileobj_closed(fileobj)
 
         if not isinstance(fileobj, _File):
-            # TODO: There needs to be a way of handling this built into the
-            # _File class.  I think maybe there used to be, but I took it out;
-            # now the design is such that it would be better for it to go back
-            # in
-            mode = 'append'
-            fmode = fileobj_mode(fileobj) or 'ab+'
-            for key, val in PYTHON_MODES.iteritems():
-                if val == fmode:
-                    mode = key
-                    break
-            fileobj = _File(fileobj, mode=mode)
+            fileobj = _File(fileobj, mode='ostream', clobber=clobber)
 
         try:
             blocks = self.tostring(sep=sep, endcard=endcard, padding=padding)
@@ -812,12 +787,6 @@ class Header(object):
         else:
             self[keyword] = (value, comment)
 
-    @deprecated('3.0', alternative='``key in header`` syntax')
-    def has_key(self, key):
-        """Like :meth:`dict.has_key`."""
-
-        return key in self
-
     def items(self):
         """Like :meth:`dict.items`."""
 
@@ -1018,7 +987,7 @@ class Header(object):
             # This must be a legacy update()
             warnings.warn(
                 "The use of header.update() to add new keywords to a header "
-                "deprecated.  Instead, use either header.set() or simply "
+                "is deprecated.  Instead, use either header.set() or simply "
                 "`header[keyword] = value` or "
                 "`header[keyword] = (value, comment)`.  header.set() is only "
                 "necessary to use if you also want to use the before/after "
@@ -1836,19 +1805,11 @@ class Header(object):
 
         return CardList(self)
 
-    @deprecated('3.0', alternative='the `.ascard` attribute')
-    def ascardlist(self):
-        """
-        Returns a `CardList` object.
-        """
-
-        return self.ascard
-
     @deprecated('3.1', alternative=':meth:`Header.rename_keyword`')
     def rename_key(self, oldkey, newkey, force=False):
         self.rename_keyword(oldkey, newkey, force)
 
-    @deprecated('3.1', alternative="``header['HISTORY']``", pending=True)
+    @deprecated('3.1', alternative="``header['HISTORY']``")
     def get_history(self):
         """
         Get all history cards as a list of string texts.
@@ -1859,7 +1820,7 @@ class Header(object):
         else:
             return []
 
-    @deprecated('3.1', alternative="``header['COMMENT']``", pending=True)
+    @deprecated('3.1', alternative="``header['COMMENT']``")
     def get_comment(self):
         """
         Get all comment cards as a list of string texts.
@@ -1944,7 +1905,7 @@ class Header(object):
                         not (card.keyword == '' and card.value == '')):
                     # Don't add duplicate commentary cards (though completely
                     # blank cards are allowed to be duplicated)
-                    for idx, c in enumerate(self.cards):
+                    for c in self.cards:
                         if c.keyword == card.keyword and c.value == card.value:
                             break
                     else:

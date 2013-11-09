@@ -18,10 +18,11 @@
 /* This module contains three functions that are callable from python.  The  */
 /* first is compress_hdu.  This function takes a pyfits.CompImageHDU object  */
 /* containing the uncompressed image data and returns the compressed data    */
-/* for all tiles into the .compData attribute of that HDU.                   */
+/* for all tiles into the .compressed_data attribute of that HDU.            */
+/*                                                                           */
 /* The second function is decompress_hdu.  It takes a pyfits.CompImageHDU    */
-/* object that already has compressed data in its .compData attribute. It    */
-/* returns the decompressed image data into the HDU's .data attribute.       */
+/* object that already has compressed data in its .compressed_data attribute.*/
+/* It returns the decompressed image data into the HDU's .data attribute.    */
 /* Finally, the utility function calc_max_elm is used internally by the      */
 /* CompImageHDU class to estimate how much memory to allocate for the        */
 /* compressed data when compressing an image.                                */
@@ -639,13 +640,44 @@ void configure_compression(fitsfile* fileptr, PyObject* header) {
                 (0 == strcmp(tmp, "NONE"))) {
             Fptr->quantize_level = NO_QUANTIZE;
         } else if (0 == strcmp(tmp, "SUBTRACTIVE_DITHER_1")) {
-            Fptr->quantize_dither = SUBTRACTIVE_DITHER_1;
+#ifdef CFITSIO_SUPPORTS_SUBTRACTIVE_DITHER_2
+            // Added in CFITSIO 3.35, this also changed the name of the
+            // quantize_dither struct member to quantize_method
+            Fptr->quantize_method = SUBTRACTIVE_DITHER_1;
+        } else if (0 == strcmp(tmp, "SUBTRACTIVE_DITHER_2")) {
+            Fptr->quantize_method = SUBTRACTIVE_DITHER_2;
         } else {
-            Fptr->quantize_dither = 0;
+            Fptr->quantize_method = NO_DITHER;
         }
     } else {
-        Fptr->quantize_dither = 0;
+        Fptr->quantize_method = NO_DITHER;
     }
+
+    if (Fptr->quantize_method != NO_DITHER) {
+        if (0 != get_header_int(header, "ZDITHER0", &(Fptr->dither_seed), 0)) {
+            // ZDITHER0 keyword not found
+            Fptr->dither_seed = 0;
+            Fptr->request_dither_seed = 0;
+        }
+    }
+#else
+            Fptr->quantize_dither = SUBTRACTIVE_DITHER_1;
+        } else {
+            Fptr->quantize_dither = NO_DITHER;
+        }
+    } else {
+        Fptr->quantize_dither = NO_DITHER;
+    }
+
+    if (Fptr->quantize_dither != NO_DITHER) {
+        if (0 != get_header_int(header, "ZDITHER0", &(Fptr->dither_offset),
+                                0)) {
+            // ZDITHER0 keyword no found
+            Fptr->dither_offset = 0;
+            Fptr->request_dither_offset = 0;
+        }
+    }
+#endif
 
     Fptr->compressimg = 1;
     Fptr->maxelem = imcomp_calc_max_elem(Fptr->compress_type,
@@ -660,7 +692,7 @@ void configure_compression(fitsfile* fileptr, PyObject* header) {
 void init_output_buffer(PyObject* hdu, void** buf, size_t* bufsize) {
     // Determines a good size for the output data buffer and allocates
     // memory for it, returning the address and size of the allocated
-    // membory in to **buf and *bufsize respectively.
+    // memory into **buf and *bufsize respectively.
 
     PyObject* header = NULL;
     char keyword[9];
@@ -737,7 +769,7 @@ void get_hdu_data_base(PyObject* hdu, void** buf, size_t* bufsize) {
     PyArrayObject* base;
     PyArrayObject* tmp;
 
-    data = (PyArrayObject*) PyObject_GetAttrString(hdu, "compData");
+    data = (PyArrayObject*) PyObject_GetAttrString(hdu, "compressed_data");
     if (data == NULL) {
         goto fail;
     }
@@ -747,7 +779,7 @@ void get_hdu_data_base(PyObject* hdu, void** buf, size_t* bufsize) {
     // allocated for the table and its heap
     if (!PyObject_TypeCheck(data, &PyArray_Type)) {
         PyErr_SetString(PyExc_TypeError,
-                        "CompImageHDU.compData must be a numpy.ndarray");
+                        "CompImageHDU.compressed_data must be a numpy.ndarray");
         goto fail;
     }
 
@@ -769,7 +801,7 @@ fail:
 
 
 void open_from_hdu(fitsfile** fileptr, void** buf, size_t* bufsize,
-                   PyObject* hdu, tcolumn* columns) {
+                   PyObject* hdu, tcolumn** columns) {
     PyObject* header = NULL;
     FITSfile* Fptr;
 
@@ -823,7 +855,7 @@ void open_from_hdu(fitsfile** fileptr, void** buf, size_t* bufsize,
 
     // Configure the array of table column structs from the PyFITS header
     // instead of allowing CFITSIO to try to read from the header
-    tcolumns_from_header(*fileptr, header, &columns);
+    tcolumns_from_header(*fileptr, header, columns);
     if (PyErr_Occurred()) {
         goto fail;
     }
@@ -850,12 +882,13 @@ PyObject* compression_compress_hdu(PyObject* self, PyObject* args)
 
     PyArrayObject* indata;
     PyArrayObject* tmp;
-    long znaxis;
+    npy_intp znaxis;
     int datatype;
     int npdatatype;
     unsigned long long heapsize;
 
     fitsfile* fileptr;
+    FITSfile* Fptr;
     int status = 0;
 
     if (!PyArg_ParseTuple(args, "O:compression.compress_hdu", &hdu))
@@ -870,12 +903,14 @@ PyObject* compression_compress_hdu(PyObject* self, PyObject* args)
     // We just need to get the compressed bytes and PyFITS will handle the
     // writing of them.
     init_output_buffer(hdu, &outbuf, &outbufsize);
-    open_from_hdu(&fileptr, &outbuf, &outbufsize, hdu, columns);
+    open_from_hdu(&fileptr, &outbuf, &outbufsize, hdu, &columns);
     if (PyErr_Occurred()) {
         return NULL;
     }
 
-    bitpix_to_datatypes(fileptr->Fptr->zbitpix, &datatype, &npdatatype);
+    Fptr = fileptr->Fptr;
+
+    bitpix_to_datatypes(Fptr->zbitpix, &datatype, &npdatatype);
     if (PyErr_Occurred()) {
         return NULL;
     }
@@ -895,16 +930,34 @@ PyObject* compression_compress_hdu(PyObject* self, PyObject* args)
         goto fail;
     }
 
-    znaxis = (long) outbufsize;  // The output array is just one dimension.
+    // Previously this used outbufsize as the size to use for the new Numpy
+    // byte array. However outbufsize is usually larger than necessary to
+    // store all the compressed data exactly; instead use the exact size
+    // of the compressed data from the heapsize plus the size of the table
+    // itself
+    heapsize = (unsigned long long) Fptr->heapsize;
+    znaxis = (npy_intp) (Fptr->heapstart + heapsize);
+
+    if (znaxis < outbufsize) {
+        // Go ahead and truncate to the size in znaxis to free the
+        // redundant allocation
+        // TODO: Add error handling
+        outbuf = realloc(outbuf, (size_t) znaxis);
+    }
+
     tmp = (PyArrayObject*) PyArray_SimpleNewFromData(1, &znaxis, NPY_UBYTE,
                                                      outbuf);
 
-    heapsize = (unsigned long long) fileptr->Fptr->heapsize;
 
     // Leaves refcount of tmp untouched, so its refcount should remain as 1
     retval = Py_BuildValue("KN", heapsize, tmp);
 
 fail:
+    if (columns != NULL) {
+        PyMem_Free(columns);
+        Fptr->tableptr = NULL;
+    }
+
     if (fileptr != NULL) {
         status = 1; // Disable header-related errors
         fits_close_file(fileptr, &status);
@@ -914,9 +967,6 @@ fail:
         }
     }
 
-    if (columns != NULL) {
-        PyMem_Free(columns);
-    }
     Py_XDECREF(indata);
 
     // Clear any messages remaining in CFITSIO's error stack
@@ -937,8 +987,8 @@ PyObject* compression_decompress_hdu(PyObject* self, PyObject* args)
     PyArrayObject* outdata;
     int datatype;
     int npdatatype;
-    int zndim;
-    long* znaxis;
+    npy_intp zndim;
+    npy_intp* znaxis;
     long arrsize;
     unsigned int idx;
 
@@ -952,10 +1002,14 @@ PyObject* compression_decompress_hdu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    // Grab a pointer to the input data from the HDU's compData attribute
+    // Grab a pointer to the input data from the HDU's compressed_data
+    // attribute
     get_hdu_data_base(hdu, &inbuf, &inbufsize);
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
 
-    open_from_hdu(&fileptr, &inbuf, &inbufsize, hdu, columns);
+    open_from_hdu(&fileptr, &inbuf, &inbufsize, hdu, &columns);
     if (PyErr_Occurred()) {
         return NULL;
     }
@@ -965,8 +1019,8 @@ PyObject* compression_decompress_hdu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    zndim = fileptr->Fptr->zndim;
-    znaxis = (long*) PyMem_Malloc(sizeof(long) * zndim);
+    zndim = (npy_intp)fileptr->Fptr->zndim;
+    znaxis = (npy_intp*) PyMem_Malloc(sizeof(npy_intp) * zndim);
     arrsize = 1;
     for (idx = 0; idx < zndim; idx++) {
         znaxis[zndim - idx - 1] = fileptr->Fptr->znaxis[idx];
@@ -985,6 +1039,11 @@ PyObject* compression_decompress_hdu(PyObject* self, PyObject* args)
     }
 
 fail:
+    if (columns != NULL) {
+        PyMem_Free(columns);
+        fileptr->Fptr->tableptr = NULL;
+    }
+
     if (fileptr != NULL) {
         status = 1;// Disable header-related errors
         fits_close_file(fileptr, &status);
@@ -994,9 +1053,6 @@ fail:
         }
     }
 
-    if (columns != NULL) {
-        PyMem_Free(columns);
-    }
     PyMem_Free(znaxis);
 
     // Clear any messages remaining in CFITSIO's error stack

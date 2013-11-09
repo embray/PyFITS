@@ -4,7 +4,7 @@ from pyfits.file import _File
 from pyfits.hdu.base import NonstandardExtHDU
 from pyfits.hdu.hdulist import HDUList
 from pyfits.header import Header
-from pyfits.util import lazyproperty, BytesIO, fileobj_name
+from pyfits.util import lazyproperty, BytesIO, fileobj_name, _pad_length
 
 
 class FitsHDU(NonstandardExtHDU):
@@ -21,7 +21,7 @@ class FitsHDU(NonstandardExtHDU):
 
     @lazyproperty
     def hdulist(self):
-        self._file.seek(self._datLoc)
+        self._file.seek(self._data_offset)
         fileobj = BytesIO()
         # Read the data into a BytesIO--reading directly from the file
         # won't work (at least for gzipped files) due to problems deep
@@ -47,7 +47,7 @@ class FitsHDU(NonstandardExtHDU):
             Gzip compress the FITS file
         """
 
-        return cls.fromhdulist(HDUList(filename), compress=compress)
+        return cls.fromhdulist(HDUList.fromfile(filename), compress=compress)
 
     @classmethod
     def fromhdulist(cls, hdulist, compress=False):
@@ -69,9 +69,17 @@ class FitsHDU(NonstandardExtHDU):
             else:
                 name = None
             fileobj = gzip.GzipFile(name, mode='wb', fileobj=bs)
+
         hdulist.writeto(fileobj)
+
         if compress:
             fileobj.close()
+
+        # A proper HDUList should still be padded out to a multiple of 2880
+        # technically speaking
+        padding = (_pad_length(bs.tell()) * cls._padding_byte).encode('ascii')
+        bs.write(padding)
+
         bs.seek(0)
 
         cards = [
@@ -87,7 +95,7 @@ class FitsHDU(NonstandardExtHDU):
         # these at the moment
         if len(hdulist) > 1:
             for idx, hdu in enumerate(hdulist[1:]):
-                cards.append(('XIND' + str(idx + 1), hdu._hdrLoc,
+                cards.append(('XIND' + str(idx + 1), hdu._header_offset,
                               'byte offset of extension %d' % (idx + 1)))
 
         cards.append(('COMPRESS',  compress, 'Uses gzip compression'))
