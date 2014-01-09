@@ -31,7 +31,7 @@ class SchemaValidationError(SchemaError):
 
 
 class MetaSchema(type):
-    keyword_properties = set(['mandatory'])
+    keyword_properties = set(['mandatory', 'position'])
 
     def __new__(mcls, name, bases, members):
         keywords = members.setdefault('keywords', {})
@@ -62,6 +62,9 @@ class MetaSchema(type):
         return keyword.upper() in cls.keywords
 
 
+# TODO: Also validate non-existence of duplicate keywords (excepting commentary
+# keywords and RVKC base keywords)
+
 class Schema(object):
     __metaclass__ = MetaSchema
 
@@ -79,3 +82,13 @@ class Schema(object):
         if mandatory and keyword not in header:
             raise SchemaValidationError(cls.__name__,
                 'mandatory keyword %r missing from header' % keyword)
+
+    @classmethod
+    def _validate_position(cls, header, keyword, position):
+        if keyword in header:
+            found = header.index(keyword)
+            if found != position:
+                raise SchemaValidationError(cls.__name__,
+                    'keyword %r is required to have position %d in the '
+                    'header; instead it was found in position %d (note: '
+                    'position is zero-indexed)' % (keyword, position, found))

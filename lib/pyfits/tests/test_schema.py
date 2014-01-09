@@ -94,9 +94,7 @@ class TestSchema(PyfitsTestCase):
         assert_raises(SchemaDefinitionError, make_invalid_schema)
 
     def test_mandatory_keywords(self):
-        """
-        Basic test of mandatory keyword validation.
-        """
+        """Basic test of mandatory keyword validation."""
 
         class TestSchema(fits.Schema):
             keywords = {
@@ -111,3 +109,26 @@ class TestSchema(PyfitsTestCase):
         assert TestSchema.validate(h1)
         assert TestSchema.validate(h2)
         assert_raises(SchemaValidationError, TestSchema.validate, h3)
+
+    def test_keyword_positions(self):
+        """Basic test of keyword position validation."""
+
+        class TestSchema(fits.Schema):
+            keywords = {
+                'TEST1': {'position': 0},
+                'TEST2': {'position': 1, 'mandatory': True},
+                'TEST3': {}  # position: anywhere
+            }
+
+        # Note: The position property does not mean a keyword is *mandatory*,
+        # just that if it is present it must have the specified position
+        h1 = fits.Header([('TEST1', ''), ('TEST2', ''), ('TEST4', ''),
+                          ('TEST3', '')])
+        h2 = fits.Header([('TEST3', ''), ('TEST2', ''), ('TEST1', '')])
+        h3 = fits.Header([('TEST3', ''), ('TEST2', '')])
+        h4 = fits.Header([('TEST2', ''), ('TEST1', '')])
+
+        assert TestSchema.validate(h1)
+        assert_raises(SchemaValidationError, TestSchema.validate, h2)
+        assert TestSchema.validate(h3)
+        assert_raises(SchemaValidationError, TestSchema.validate, h4)
