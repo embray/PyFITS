@@ -50,6 +50,7 @@ from pyfits.convenience import *
 from pyfits.diff import *
 from pyfits.fitsrec import FITS_record, FITS_rec
 from pyfits.hdu import *
+from pyfits.schema import Schema
 from pyfits.util import (PyfitsDeprecationWarning,
                          PyfitsPendingDeprecationWarning)
 
@@ -85,7 +86,7 @@ for varname, default in GLOBALS:
 __all__ = (card.__all__ + column.__all__ + convenience.__all__ + diff.__all__ +
            hdu.__all__ +
            ['FITS_record', 'FITS_rec', 'open', 'Section', 'new_table',
-            'Header', 'VerifyError', 'PyfitsDeprecationWarning',
+            'Header', 'Schema', 'VerifyError', 'PyfitsDeprecationWarning',
             'PyfitsPendingDeprecationWarning', 'ignore_deprecation_warnings',
             'TRUE', 'FALSE'] + [g[0] for g in GLOBALS])
 
