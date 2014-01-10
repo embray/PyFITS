@@ -1,5 +1,7 @@
 import warnings
 
+import numpy as np
+
 from pyfits.card import KEYWORD_LENGTH
 
 
@@ -32,7 +34,8 @@ class SchemaValidationError(SchemaError):
 
 class MetaSchema(type):
     schema_attributes = set(['keywords'])
-    keyword_properties = set(['mandatory', 'position'])
+    keyword_properties = set(['mandatory', 'position', 'value'])
+    keyword_required_properties = set(['mandatory'])
 
     def __new__(mcls, name, bases, members):
         keywords = members.setdefault('keywords', {})
@@ -90,7 +93,14 @@ class Schema(object):
     @classmethod
     def validate(cls, header):
         for keyword, properties in cls.keywords.items():
+            keyword_present = keyword in header
             for propname, propval in properties.items():
+                if (not keyword_present and
+                        propname not in cls.keyword_required_properties):
+                    # Most properties are inapplicable if the keyword is not
+                    # present in the header; so far the only exception is
+                    # checking presence of a mandatory keyword
+                    continue
                 validator = getattr(cls, '_validate_%s' % propname)
                 validator(header, keyword, propval)
 
@@ -104,10 +114,86 @@ class Schema(object):
 
     @classmethod
     def _validate_position(cls, header, keyword, position):
-        if keyword in header:
-            found = header.index(keyword)
-            if found != position:
+        found = header.index(keyword)
+        if found != position:
+            raise SchemaValidationError(cls.__name__,
+                'keyword %r is required to have position %d in the '
+                'header; instead it was found in position %d (note: '
+                'position is zero-indexed)' % (keyword, position, found))
+
+    @classmethod
+    def _validate_value(cls, header, keyword, value_test):
+        # any string, Python numeric type, numpy numeric type, or boolean type
+        # is a valid scalar value
+        value = header[keyword]
+
+        if isinstance(value_test, tuple):
+            for test in value_test:
+                cls._validate_value(header, keyword, test)
+
+            return
+
+        if isinstance(value_test, np.bool_):
+            value_test = bool(value_test)
+
+        if isinstance(value_test, bool):
+            # True/False compare equal to 1/0, but for boolean values we want
+            # to confirm strict equality
+            if isinstance(value, np.bool_):
+                value = bool(value)
+
+            if value is not value_test:
                 raise SchemaValidationError(cls.__name__,
-                    'keyword %r is required to have position %d in the '
-                    'header; instead it was found in position %d (note: '
-                    'position is zero-indexed)' % (keyword, position, found))
+                    'keyword %r is required to have the value %r; got '
+                    '%r instead' % (keyword, value_test, value))
+        elif isinstance(value_test, (int, long, float, complex, np.number,
+                                     basestring)):
+            if isinstance(value, (bool, np.bool_)) or value != value_test:
+                raise SchemaValidationError(cls.__name__,
+                    'keyword %r is required to have the value %r; got '
+                    '%r instead' % (keyword, value_test, value))
+        elif isinstance(value_test, type):
+            if issubclass(value_test, (int, long, np.integer)):
+                # FITS (and Python 3) have no int/long distinction, so as long
+                # as the value is one of those it will pass validation as
+                # either an int or a long
+                valid = isinstance(value, (int, long, np.integer))
+            elif issubclass(value_test, (float, np.floating)):
+                # An int is also acceptable for floating point tests
+                valid = isinstance(value, (int, long, np.integer, float,
+                                           np.floating))
+            elif issubclass(value_test, (complex, np.complex)):
+                valid = isinstance(value, (int, long, np.integer, float,
+                                           np.floating, complex, np.complex))
+            else:
+                valid = isinstance(value, value_test)
+
+            if not valid:
+                raise SchemaValidationError(cls.__name__,
+                    'keyword %r is required to have a value of type %r; got '
+                    'a value of type %r instead' %
+                    (keyword, value_test.__name__, type(value).__name__))
+        elif callable(value_test):
+            # TODO: Since an arbitrary function cannot help explain *why* a
+            # validation error occurred, we need to rework this so that the
+            # schema can provide a custom validation error message
+
+            try:
+                result = value_test(value, keyword, header)
+            except Exception, e:
+                raise SchemaDefinitionError(cls.__name__,
+                    'an exception occurred in the value validation function '
+                    'for the keyword %r; the value validation function must '
+                    'not raise an exception: %r' % (keyword, e))
+
+            if not isinstance(result, (bool, np.bool_)):
+                raise SchemaDefinitionError(cls.__name__,
+                    'the value valudation function for keyword %r must return '
+                    'a boolean value; instead it returned %r' %
+                    (keyword, result))
+
+            if not result:
+                raise SchemaValidationError(cls.__name__,
+                    'the value of keyword %r failed validation; see the '
+                    'schema in which this keyword was defined for details '
+                    'on its correct value format' % keyword)

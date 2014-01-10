@@ -1,5 +1,7 @@
 from __future__ import division, with_statement
 
+import numpy as np
+
 import pyfits as fits
 from pyfits.schema import SchemaDefinitionError, SchemaValidationError
 from pyfits.tests import PyfitsTestCase
@@ -123,3 +125,76 @@ class TestSchema(PyfitsTestCase):
         assert_raises(SchemaValidationError, TestSchema.validate, h2)
         assert TestSchema.validate(h3)
         assert_raises(SchemaValidationError, TestSchema.validate, h4)
+
+    def test_keyword_value(self):
+        """Basic test of value validation.
+
+        There are several cases for the value property:
+
+        TODO: Move most of the following text in the documentation for schemas.
+
+        * if given as a string, numeric, or boolean scalar value then
+          the value in the keyword is compared directly to that value
+          (TODO: support Astropy units as well)
+
+        * if given as a Python class or type, perform an isinstance check
+          against that type (this may be a tuple of types as well)
+
+        * otherwise, if provided a callable object, (eg. a function or a
+          lambda) call the function with the value as the first argument, the
+          name of the keyword being validated as the second argument, and the
+          full header as the third argument (other supported arguments may be
+          added in the future). The callable much return a boolean value;
+          obviously there is no way to test this when the schema is defined,
+          but it *is* tested at runtime and can result in a runtime
+          SchemaDefinitionError, so make sure that custom validation functions
+          are well tested.
+        """
+
+        # Map a keyword name to a 3-tuple consisting of its "value" property
+        # in a schema, a good value to test it against, and a bad value to test
+        # it against
+        test_values = {
+            'NUM01': (1.1, 1.1, 1),
+            # a value of False should *not* validate for the integer 0
+            'NUM02': (0, 0, False),
+            'NUM03': (1+2j, 1+2j, 0),
+            'NUM04': (1.1+2.2j, 1.1+2.2j, 1.1+2j),
+            'NUM05': (np.int64(0), 0, np.int64(1)),
+            'NUM06': (np.byte(1), 1, np.byte(0)),
+            'NUM07': (np.float32(0), 0.0, 1.0),
+            'STR01': ('', '', 'a'),
+            'STR02': ('ABC', 'ABC', 'abc'),
+            'BOOL01': (True, True, 1),
+            'BOOL02': (False, False, 0),
+            'BOOL03': (np.bool_(True), True, 1),
+            'BOOL04': (np.bool_(False), False, 0),
+            'TYPE01': (str, '', 0),
+            'TYPE02': (basestring, '', 0),
+            'TYPE03': (int, np.uint32(1), 0.1),
+            'TYPE04': (long, np.uint32(1), 0.1),
+            'TYPE05': (complex, 1, 'abc'),
+            'TYPE06': (complex, 1+1j, 'def'),
+            'FUNC01': (lambda v, k, h: v > 1, 2, 0),
+            'FUNC02': (lambda v, k, h: (k == 'FUNC02') == v, True, False),
+            'FUNC03': (lambda v, k, h: isinstance(h, fits.Header) == v,
+                       True, False)
+        }
+
+        TestSchema = type('TestSchema', (fits.Schema,),
+                          dict((k, {'value': v[0]})
+                               for k, v in test_values.items()))
+
+        for keyword, values in test_values.items():
+            good, bad = values[1:]
+            h_good = fits.Header([(keyword, good)])
+            assert TestSchema.validate(h_good)
+            h_bad = fits.Header([(keyword, bad)])
+            assert_raises(SchemaValidationError, TestSchema.validate, h_bad)
+
+        # Test a header containing all the good values
+        h_good = fits.Header([(k, v[1]) for k, v in test_values.items()])
+        assert TestSchema.validate(h_good)
+
+        h_bad = fits.Header([(k, v[2]) for k, v in test_values.items()])
+        assert_raises(SchemaValidationError, TestSchema.validate, h_bad)
