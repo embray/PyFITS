@@ -198,3 +198,48 @@ class TestSchema(PyfitsTestCase):
 
         h_bad = fits.Header([(k, v[2]) for k, v in test_values.items()])
         assert_raises(SchemaValidationError, TestSchema.validate, h_bad)
+
+    def test_schema_composition(self):
+        """Basic tests of schema single-inheritance."""
+
+        class TestSchema_A(fits.Schema):
+            TEST1 = {'mandatory': True}
+
+        class TestSchema_B(TestSchema_A):
+            # Add further restrictions
+            TEST1 = {'value': 1}
+            TEST2 = {'mandatory': True}
+            TEST3 = {}
+
+        class TestSchema_C(TestSchema_B):
+            # Override existing properties
+            TEST1 = {'value': 2}
+            TEST2 = {'mandatory': False}
+
+        h1 = fits.Header([('TEST1', 2)])
+        assert TestSchema_A.validate(h1)
+        assert_raises(SchemaValidationError, TestSchema_B.validate, h1)
+
+        h1['TEST2'] = True
+        assert_raises(SchemaValidationError, TestSchema_B.validate, h1)
+
+        h1['TEST1'] = 1
+        assert TestSchema_A.validate(h1)
+        assert TestSchema_B.validate(h1)
+
+        del h1['TEST1']
+        # TEST1 should be mandatory in both schemas
+        assert_raises(SchemaValidationError, TestSchema_A.validate, h1)
+        assert_raises(SchemaValidationError, TestSchema_B.validate, h1)
+
+        assert hasattr(TestSchema_C, 'TEST3')
+        assert TestSchema_C.TEST3 == {}
+
+        h1['TEST1'] = 1
+        assert_raises(SchemaValidationError, TestSchema_C.validate, h1)
+
+        h1['TEST1'] = 2
+        assert TestSchema_C.validate(h1)
+
+        del h1['TEST2']
+        assert TestSchema_C.validate(h1)

@@ -38,6 +38,18 @@ class MetaSchema(type):
     keyword_required_properties = set(['mandatory'])
 
     def __new__(mcls, name, bases, members):
+        # Determine initial keyword properties from the base classes
+        base_keywords = {}
+        for base_cls in reversed(bases):
+            if not isinstance(base_cls, mcls):
+                continue
+
+            for keyword, properties in base_cls.keywords.items():
+                if keyword in base_keywords:
+                    base_keywords[keyword].update(properties)
+                else:
+                    base_keywords[keyword] = properties
+
         keywords = members.setdefault('keywords', {})
 
         # All class attributes of a schema that are not attributes used
@@ -78,6 +90,23 @@ class MetaSchema(type):
                 # validate keyword property definitions against the meta-schema
                 validator = getattr(mcls, '_meta_validate_%s' % propname)
                 validator(keyword, value)
+
+            # Now compose the properties defined on this schema with any
+            # properties from its base schema
+            if keyword in base_keywords:
+                # We need to *copy* any properties dict from the base classes
+                # to ensure we don't modify the keyword properties in the base
+                # class with the .update() call
+                base_properties = base_keywords[keyword].copy()
+                base_properties.update(properties)
+                base_keywords[keyword] = base_properties
+            else:
+                base_keywords[keyword] = properties
+
+            if keyword in members:
+                members[keyword] = base_keywords[keyword]
+
+        members['keywords'] = base_keywords
 
         return super(mcls, mcls).__new__(mcls, name, bases, members)
 
