@@ -75,6 +75,9 @@ class MetaSchema(type):
                         'invalid keyword property for %r: %r; valid keyword '
                         'properties are: %r' %
                         (keyword, propname, sorted(mcls.keyword_properties)))
+                # validate keyword property definitions against the meta-schema
+                validator = getattr(mcls, '_meta_validate_%s' % propname)
+                validator(keyword, value)
 
         return super(mcls, mcls).__new__(mcls, name, bases, members)
 
@@ -83,6 +86,55 @@ class MetaSchema(type):
         # indexed keywords like NAXISn
         return keyword.upper() in cls.keywords
 
+    @classmethod
+    def _meta_validate_mandatory(mcls, keyword, value):
+        """The 'mandatory' property must be a boolean or a callable."""
+
+        if not (isinstance(value, (bool, np.bool_)) or callable(value)):
+            # TODO: For callables, also check that they support the correct
+            # number of arguments
+            raise SchemaDefinitionError(cls.__name__,
+                "invalid 'mandatory' property for %r; must be either a "
+                "bool or a callable returning a bool; got %r" %
+                (keyword, value))
+
+    @classmethod
+    def _meta_validate_position(mcls, keyword, value):
+        """
+        The 'position' property must be a non-negative integer or a callable.
+
+        TODO: Maybe allow negative integers for testing position relative to
+        the end of the header...
+        """
+
+        if not ((isinstance(value, (int, long, np.integer)) and value >= 0) or
+                callable(value)):
+            raise SchemaDefinitionError(cls.__name__,
+                "invalid 'position' property for %r; must be either a "
+                "non-negative integer or a callable returning a non-negative "
+                "integer; got %r" % (keyword, value))
+
+    @classmethod
+    def _meta_validate_value(mcls, keyword, value):
+        """
+        The 'value' property has a number of possible values:
+
+        * a tuple representing a conjunction of any of the other options
+        * a string, numeric, or boolean scalar
+        * a Python class/type that can be used for a string, numeric, or
+          boolean value (used for type checking only)
+        * an arbitrary callable that returns a bool, indicating that the
+          value is valid
+        """
+
+        if not (isinstance(value, (tuple, int, long, np.integer, float,
+                                   np.floating, complex, np.complex, bool,
+                                   np.bool_, basestring)) or
+                (isinstance(value, type) and
+                 issubclass(value, (int, long, np.integer, float, np.floating,
+                                    complex, np.complex, bool, np.bool_,
+                                    basestring))) or callable(value)):
+            raise SchemaDefinitionError(cls.__name__, 'TODO')
 
 # TODO: Also validate non-existence of duplicate keywords (excepting commentary
 # keywords and RVKC base keywords)
