@@ -32,16 +32,12 @@ class TestSchema(PyfitsTestCase):
         h2 = fits.Header([('TEST2', 'TEST')])
 
         class TrivialSchema_1(fits.Schema):
-            keywords = {
-                'TEST1': {}
-            }
+            TEST1 = {}
 
         class TrivialSchema_2(fits.Schema):
-            keywords = {
-                'TEST1': {},
-                'TEST2': {},
-                'TEST3': {}
-            }
+            TEST1 = {}
+            TEST2 = {}
+            TEST3 = {}
 
         assert TrivialSchema_1.validate(fits.Header())
         assert TrivialSchema_1.validate(h1)
@@ -57,11 +53,9 @@ class TestSchema(PyfitsTestCase):
 
         with catch_warnings(record=True) as w:
             class TrivialSchema(fits.Schema):
-                keywords = {
-                    'TEST1': {},
-                    'TesT2': {},
-                    'TEST3': {}
-                }
+                TEST1 = {}
+                TesT2 = {}
+                TEST3 = {}
 
         assert len(w) == 1
 
@@ -73,6 +67,9 @@ class TestSchema(PyfitsTestCase):
         # Keywords not listed in upper-case should have been normalized
         assert 'TesT2' not in TrivialSchema.keywords
         assert 'TEST2' in TrivialSchema.keywords
+
+        assert hasattr(TrivialSchema, 'TEST2')
+        assert not hasattr(TrivialSchema, 'TesT2')
 
         # Keywords in schemas are also case-insensitive (at least for standard
         # keywords; this might not hold for HIERARCH or RVKC keywords if they
@@ -87,9 +84,7 @@ class TestSchema(PyfitsTestCase):
 
         def make_invalid_schema():
             class InvalidSchema(fits.Schema):
-                keywords = {
-                    'TEST': {'kqwijibo': True}
-                }
+                TEST = {'kqwijibo': True}
 
         assert_raises(SchemaDefinitionError, make_invalid_schema)
 
@@ -97,10 +92,8 @@ class TestSchema(PyfitsTestCase):
         """Basic test of mandatory keyword validation."""
 
         class TestSchema(fits.Schema):
-            keywords = {
-                'TEST1': {'mandatory': True},
-                'TEST2': {'mandatory': False}
-            }
+            TEST1 = {'mandatory': True}
+            TEST2 = {'mandatory': False}
 
         h1 = fits.Header([('TEST1', '')])  # no TEST2
         h2 = fits.Header([('TEST1', ''), ('TEST2', '')])
@@ -114,11 +107,9 @@ class TestSchema(PyfitsTestCase):
         """Basic test of keyword position validation."""
 
         class TestSchema(fits.Schema):
-            keywords = {
-                'TEST1': {'position': 0},
-                'TEST2': {'position': 1, 'mandatory': True},
-                'TEST3': {}  # position: anywhere
-            }
+            TEST1 = {'position': 0}
+            TEST2 = {'position': 1, 'mandatory': True}
+            TEST3 = {}  # position: anywhere
 
         # Note: The position property does not mean a keyword is *mandatory*,
         # just that if it is present it must have the specified position

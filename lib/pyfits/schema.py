@@ -31,19 +31,38 @@ class SchemaValidationError(SchemaError):
 
 
 class MetaSchema(type):
+    schema_attributes = set(['keywords'])
     keyword_properties = set(['mandatory', 'position'])
 
     def __new__(mcls, name, bases, members):
         keywords = members.setdefault('keywords', {})
+
+        # All class attributes of a schema that are not attributes used
+        # specifically by the schema class (listed in `schema_attributes`)
+        # and that have a dict value are treated as schemas for specific FITS
+        # keywords.  If a FITS keyword happens to match one of the
+        # `schema_attributes` it must be provided in the `keywords` attribute
+        # of the schema, which is a dict mapping FITS keywords to their
+        # schemas.  If a keyword is defined in both ways, the attribute
+        # overrides the entry in the `keywords` dict.
+        for key, value in members.items():
+            if key not in mcls.schema_attributes and isinstance(value, dict):
+                keywords[key] = value
+
         # For standard FITS keywords, ensure that all keyword definitions are
         # normalized to uppercase
         for keyword in list(keywords):
-            if len(keyword) <= KEYWORD_LENGTH and keyword != keyword.upper():
+            keyword_upper = keyword.upper()
+            if len(keyword) <= KEYWORD_LENGTH and keyword != keyword_upper:
                 warnings.warn(
                     'Keyword %s should be listed in all caps in schema %s' %
                     (keyword, name))
-                keywords[keyword.upper()] = keywords[keyword]
+                keywords[keyword_upper] = keywords[keyword]
                 del keywords[keyword]
+
+                if keyword in members:
+                    members[keyword_upper] = members[keyword]
+                    del members[keyword]
 
         for keyword, properties in keywords.items():
             # validate each of the keyword properties
