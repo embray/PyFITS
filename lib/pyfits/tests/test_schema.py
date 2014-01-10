@@ -243,3 +243,79 @@ class TestSchema(PyfitsTestCase):
 
         del h1['TEST2']
         assert TestSchema_C.validate(h1)
+
+    def test_multiple_schema_composition(self):
+        """
+        Test schema composition using multiple inheritance; particularly
+        diamond-pattern multiple inheritance.
+        """
+
+        class TestSchema_A(fits.Schema):
+            TEST1 = {'mandatory': True}  # this one will remain unchanged
+
+        class TestSchema_B(TestSchema_A):
+            TEST1 = {'value': 1}
+            TEST2 = {'mandatory': True}
+
+        class TestSchema_C(TestSchema_A):
+            TEST1 = {'mandatory': False, 'value': 2}
+            TEST2 = {'value': 1}
+            TEST3 = {'mandatory': True}
+
+        class TestSchema_D(TestSchema_B, TestSchema_C):
+            TEST3 = {'value': 1}
+
+        header = fits.Header([('TEST1', True)])
+        assert_raises(SchemaValidationError, TestSchema_B.validate, header)
+
+        header['TEST1'] = 1
+        header['TEST2'] = True
+        assert TestSchema_B.validate(header)
+        assert_raises(SchemaValidationError, TestSchema_C.validate, header)
+
+        header['TEST1'] = 2
+        header['TEST2'] = 1
+        header['TEST3'] = True
+        assert TestSchema_C.validate(header)
+
+        header['TEST2'] = 2
+        assert_raises(SchemaValidationError, TestSchema_C.validate, header)
+
+        header['TEST2'] = 1
+        del header['TEST1']
+        assert TestSchema_C.validate(header)
+
+        header['TEST1'] = 1
+        assert_raises(SchemaValidationError, TestSchema_C.validate, header)
+
+        header['TEST1'] = 2
+        del header['TEST2']
+        assert TestSchema_C.validate(header)
+
+        # Schema D should, according to the MRO, have a mandatory TEST1
+        # with value 1, a mandatory TEST2 with value 1, and a mandatory
+        # TEST3 with value 1
+        header['TEST1'] = 1
+        header['TEST2'] = 1
+        header['TEST3'] = 1
+        assert TestSchema_D.validate(header)
+
+        header['TEST1'] = 2
+        assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+        del header['TEST1']
+        assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+        header['TEST1'] = 1
+        header['TEST2'] = 2
+        assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+        del header['TEST2']
+        assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+        header['TEST2'] = 1
+        header['TEST3'] = 2
+        assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+        del header['TEST3']
+        assert_raises(SchemaValidationError, TestSchema_D.validate, header)

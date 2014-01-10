@@ -48,7 +48,7 @@ class MetaSchema(type):
                 if keyword in base_keywords:
                     base_keywords[keyword].update(properties)
                 else:
-                    base_keywords[keyword] = properties
+                    base_keywords[keyword] = properties.copy()
 
         keywords = members.setdefault('keywords', {})
 
@@ -94,14 +94,9 @@ class MetaSchema(type):
             # Now compose the properties defined on this schema with any
             # properties from its base schema
             if keyword in base_keywords:
-                # We need to *copy* any properties dict from the base classes
-                # to ensure we don't modify the keyword properties in the base
-                # class with the .update() call
-                base_properties = base_keywords[keyword].copy()
-                base_properties.update(properties)
-                base_keywords[keyword] = base_properties
+                base_keywords[keyword].update(properties)
             else:
-                base_keywords[keyword] = properties
+                base_keywords[keyword] = properties.copy()
 
             if keyword in members:
                 members[keyword] = base_keywords[keyword]
