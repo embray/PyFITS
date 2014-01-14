@@ -89,7 +89,7 @@ class MetaSchema(type):
                         (keyword, propname, sorted(mcls.keyword_properties)))
                 # validate keyword property definitions against the meta-schema
                 validator = getattr(mcls, '_meta_validate_%s' % propname)
-                validator(keyword, value)
+                validator(name, keyword, value)
 
             # Now compose the properties defined on this schema with any
             # properties from its base schema
@@ -111,19 +111,19 @@ class MetaSchema(type):
         return keyword.upper() in cls.keywords
 
     @classmethod
-    def _meta_validate_mandatory(mcls, keyword, value):
+    def _meta_validate_mandatory(mcls, clsname, keyword, value):
         """The 'mandatory' property must be a boolean or a callable."""
 
         if not (isinstance(value, (bool, np.bool_)) or callable(value)):
             # TODO: For callables, also check that they support the correct
             # number of arguments
-            raise SchemaDefinitionError(cls.__name__,
+            raise SchemaDefinitionError(clsname,
                 "invalid 'mandatory' property for %r; must be either a "
                 "bool or a callable returning a bool; got %r" %
                 (keyword, value))
 
     @classmethod
-    def _meta_validate_position(mcls, keyword, value):
+    def _meta_validate_position(mcls, clsname, keyword, value):
         """
         The 'position' property must be a non-negative integer or a callable.
 
@@ -133,13 +133,13 @@ class MetaSchema(type):
 
         if not ((isinstance(value, (int, long, np.integer)) and value >= 0) or
                 callable(value)):
-            raise SchemaDefinitionError(cls.__name__,
+            raise SchemaDefinitionError(clsname,
                 "invalid 'position' property for %r; must be either a "
                 "non-negative integer or a callable returning a non-negative "
                 "integer; got %r" % (keyword, value))
 
     @classmethod
-    def _meta_validate_value(mcls, keyword, value):
+    def _meta_validate_value(mcls, clsname, keyword, value):
         """
         The 'value' property has a number of possible values:
 
@@ -158,7 +158,7 @@ class MetaSchema(type):
                  issubclass(value, (int, long, np.integer, float, np.floating,
                                     complex, np.complex, bool, np.bool_,
                                     basestring))) or callable(value)):
-            raise SchemaDefinitionError(cls.__name__, 'TODO')
+            raise SchemaDefinitionError(clsname, 'TODO')
 
 # TODO: Also validate non-existence of duplicate keywords (excepting commentary
 # keywords and RVKC base keywords)
