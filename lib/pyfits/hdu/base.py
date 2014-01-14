@@ -68,6 +68,16 @@ def _hdu_class_from_header(cls, header):
     return klass
 
 
+class BaseSchema(Schema):
+    """
+    Base header schema that all valid HDUs must match according to the
+    FITS standard version 3.0 (July 10, 2008).
+    """
+
+    # Section 4.4.1.1
+
+
+
 # TODO: Come up with a better __repr__ for HDUs (and for HDULists, for that
 # matter)
 class _BaseHDU(object):

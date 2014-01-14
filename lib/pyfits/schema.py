@@ -265,40 +265,68 @@ class Schema(object):
         for keyword, properties in cls.keywords.items():
             indices = properties.get('indices', {})
             if indices:
-                keywords = []
-                placeholders = []
-                values = []
-
-                for ph, vals in indices.items():
-                    placeholders.append(ph)
-
-                    if callable(vals):
-                        vals = vals(keyword, header)
-                        # Validate that the value returned by the callable is
-                        # iterable
-                        try:
-                            iter(vals)
-                        except TypeError:
-                            raise SchemaDefinitionError(cls.__name__,
-                                'the callable used to determine the %r '
-                                'indices for %r did not return an iterable; '
-                                'the function must return an iterable of '
-                                'values to use as indices to this keyword' %
-                                (ph, keyword))
-
-                    values.append(vals)
-
-                for prod in itertools.product(*values):
-                    full_keyword = keyword
-                    for ph, val in itertools.izip(placeholders, prod):
-                        full_keyword = full_keyword.replace(ph, str(val))
-                    keywords.append(full_keyword)
+                keywords = cls._interpolate_indices(header, keyword, indices)
             else:
                 keywords = [keyword]
 
             for keyword in keywords:
                 cls._validate_single_keyword(header, keyword, properties)
         return True
+
+    @classmethod
+    def _interpolate_indices(cls, header, keyword, indices):
+        """
+        Given a keyword "template" and the dict of indices attached to that
+        keyword, return the list of concrete keywords generated from the
+        indices on that keyword.
+
+        For example:
+
+            >>> Schema._interpolate_indices('NAXISn', {'n': [1, 2, 3]})
+            ['NAXIS1', 'NAXIS2', 'NAXIS3']
+
+        or for more complicated cases involving multiple indices:
+
+            >>> Schema._interpolate_indices('CDi_ja',
+                                            {'i': [1, 2],
+                                             'j': [1, 2],
+                                             'a': ['A', 'B']})
+            ['CD1_1A', 'CD1_1B', 'CD1_2A', 'CD1_2B', 'CD2_1A', 'CD2_1B',
+             'CD2_2A', 'CD2_2B']
+        """
+
+        keywords = []
+        placeholders = []
+        values = []
+
+        # Sort indices by their appearance in the keyword template
+        sort_key = lambda i: keyword.index(i[0])
+
+        for ph, vals in sorted(indices.items(), key=sort_key):
+            placeholders.append(ph)
+
+            if callable(vals):
+                vals = vals(keyword, header)
+                # Validate that the value returned by the callable is
+                # iterable
+                try:
+                    iter(vals)
+                except TypeError:
+                    raise SchemaDefinitionError(cls.__name__,
+                        'the callable used to determine the %r indices for '
+                        '%r did not return an iterable; the function must '
+                        'return an iterable of values to use as indices to '
+                        'this keyword' % (ph, keyword))
+
+            values.append(vals)
+
+        for prod in itertools.product(*values):
+            full_keyword = keyword
+            for ph, val in itertools.izip(placeholders, prod):
+                full_keyword = full_keyword.replace(ph, str(val))
+            keywords.append(full_keyword)
+
+        return keywords
 
     @classmethod
     def _validate_single_keyword(cls, header, keyword, properties):
