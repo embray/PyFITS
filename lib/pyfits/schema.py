@@ -201,13 +201,14 @@ class Schema(object):
     def _validate_value(cls, header, keyword, value_test):
         # any string, Python numeric type, numpy numeric type, or boolean type
         # is a valid scalar value
-        value = header[keyword]
 
         if isinstance(value_test, tuple):
             for test in value_test:
                 cls._validate_value(header, keyword, test)
 
             return
+
+        value = header[keyword]
 
         if isinstance(value_test, np.bool_):
             value_test = bool(value_test)
@@ -229,11 +230,14 @@ class Schema(object):
                     'keyword %r is required to have the value %r; got '
                     '%r instead' % (keyword, value_test, value))
         elif isinstance(value_test, type):
-            if issubclass(value_test, (int, long, np.integer)):
+            if issubclass(value_test, (bool, np.bool_)):
+                valid = isinstance(value, (bool, np.bool_))
+            elif issubclass(value_test, (int, long, np.integer)):
                 # FITS (and Python 3) have no int/long distinction, so as long
                 # as the value is one of those it will pass validation as
                 # either an int or a long
-                valid = isinstance(value, (int, long, np.integer))
+                valid = (not isinstance(value, (bool, np.bool_)) and
+                         isinstance(value, (int, long, np.integer)))
             elif issubclass(value_test, (float, np.floating)):
                 # An int is also acceptable for floating point tests
                 valid = isinstance(value, (int, long, np.integer, float,
