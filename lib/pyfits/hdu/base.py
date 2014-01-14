@@ -15,6 +15,7 @@ import pyfits
 from ..card import Card
 from ..file import _File
 from ..header import Header, HEADER_END_RE
+from ..schema import Schema
 from ..util import (first, lazyproperty, _is_int, _is_pseudo_unsigned,
                     _unsigned_zero, _pad_length, itersubclasses, encode_ascii,
                     decode_ascii, deprecated, _get_array_mmap, _array_to_file)

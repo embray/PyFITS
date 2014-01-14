@@ -323,3 +323,62 @@ class TestSchema(PyfitsTestCase):
 
         del header['TEST3']
         assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+    def test_indexed_keywords(self):
+        """
+        Basic test for keyword definitions that can match a set of keywords
+        (eg. NAXISn).
+        """
+
+        class TestSchema(fits.Schema):
+            NAXIS = {
+                'value': (int, lambda v, k, h: v >= 0),
+                'mandatory': True}
+            NAXISn = {
+                'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},
+                'value': (int, lambda v, k, h: v >= 0)
+            }
+
+        h1 = fits.Header([('NAXIS', 2), ('NAXIS1', 1), ('NAXIS2', 2),
+                          ('NAXIS3', False)])
+
+        assert TestSchema.validate(h1)
+
+        h1['NAXIS1'] = 'abc'
+        assert_raises(SchemaValidationError, TestSchema.validate, h1)
+
+        # This should cause NAXIS3 to start being validated as well, which for
+        # now should fail
+        h1['NAXIS1'] = 1
+        h1['NAXIS'] = 3
+        assert_raises(SchemaValidationError, TestSchema.validate, h1)
+
+        # Should still fail...
+        h1['NAXIS3'] = -1
+        assert_raises(SchemaValidationError, TestSchema.validate, h1)
+
+        h1['NAXIS3'] = 3
+        assert TestSchema.validate(h1)
+
+        # This should make each NAXISn keyword mandatory...
+        class TestSchema2(TestSchema):
+            NAXISn = {'mandatory': True}
+
+        # Ensure that subclassing handled indexed keywords properly more or
+        # less
+        assert 'mandatory' in TestSchema2.NAXISn
+        assert TestSchema2.NAXISn['mandatory'] is True
+        assert 'NAXISn' in TestSchema2.keywords
+        assert 'mandatory' in TestSchema2.keywords['NAXISn']
+        assert TestSchema2.keywords['NAXISn']['mandatory'] is True
+
+        h1['NAXIS'] = 2
+        del h1['NAXIS?']
+        assert_raises(SchemaValidationError, TestSchema2.validate, h1)
+
+        h1['NAXIS1'] = 1
+        assert_raises(SchemaValidationError, TestSchema2.validate, h1)
+
+        h1['NAXIS2'] = 2
+        assert TestSchema2.validate(h1)
+

@@ -1,8 +1,10 @@
+import itertools
 import warnings
 
 import numpy as np
 
 from pyfits.card import KEYWORD_LENGTH
+from pyfits.util import split_multiple, join_multiple
 
 
 __all__ = ['Schema']
@@ -34,7 +36,7 @@ class SchemaValidationError(SchemaError):
 
 class MetaSchema(type):
     schema_attributes = set(['keywords'])
-    keyword_properties = set(['mandatory', 'position', 'value'])
+    keyword_properties = set(['mandatory', 'position', 'value', 'indices'])
     keyword_required_properties = set(['mandatory'])
 
     def __new__(mcls, name, bases, members):
@@ -64,20 +66,7 @@ class MetaSchema(type):
             if key not in mcls.schema_attributes and isinstance(value, dict):
                 keywords[key] = value
 
-        # For standard FITS keywords, ensure that all keyword definitions are
-        # normalized to uppercase
-        for keyword in list(keywords):
-            keyword_upper = keyword.upper()
-            if len(keyword) <= KEYWORD_LENGTH and keyword != keyword_upper:
-                warnings.warn(
-                    'Keyword %s should be listed in all caps in schema %s' %
-                    (keyword, name))
-                keywords[keyword_upper] = keywords[keyword]
-                del keywords[keyword]
-
-                if keyword in members:
-                    members[keyword_upper] = members[keyword]
-                    del members[keyword]
+        mcls._normalize_keywords(name, members, keywords, base_keywords)
 
         for keyword, properties in keywords.items():
             # validate each of the keyword properties
@@ -109,6 +98,85 @@ class MetaSchema(type):
         # Seems trivial for now, but will become more complicated to support
         # indexed keywords like NAXISn
         return keyword.upper() in cls.keywords
+
+    @staticmethod
+    def _normalize_keywords(name, members, keywords, base_keywords):
+        """
+        For standard FITS keywords, ensure that all keyword definitions are
+        normalized to uppercase, updating the members dict if necessary.
+
+        This includes exceptions, however, for indexed keywords.  Here the
+        common use case is that while the keyword is all uppercase, a keyword
+        index is represented by a lowercase character which may appear only
+        *once* in the keyword name.
+        """
+
+        def normalize(keyword):
+            keyword_upper = keyword.upper()
+            if len(keyword) <= KEYWORD_LENGTH and keyword != keyword_upper:
+                return keyword_upper
+            else:
+                # Keywords with length beyond the standard length currently are
+                # not automatically normalized since they can only be
+                # represented by a specialized convention
+                # TODO: Update the schema definition to support *explicit*
+                # mention of conventions used for a keyword
+                return keyword
+
+        def normalize_indexed(keyword, indices):
+            # First validate that each index placeholder appears only once
+            # in the keyword.  Might as well do this now--don't bother
+            # duplicating this check in _meta_validate_indices
+            for index in indices:
+                if len(index) != 1:
+                    raise SchemaDefinitionError(name,
+                        'invalid index placeholder %r for keyword %r; index '
+                        'placeholders may only be a single character' %
+                        (index, keyword))
+
+                if keyword.count(index) != 1:
+                    raise SchemaDefinitionError(name,
+                        'index placeholder %r for keyword %r may only appear '
+                        'exactly once in the keyword; use an index '
+                        'placeholder that is guaranteed to be a unique '
+                        'character in the keyword name' % (index, keyword))
+
+            # Split keyword into any index placeholder, and non-index portions;
+            # normalize just the non-index portions to uppercase
+            kw_fixed, kw_indices = split_multiple(keyword, *indices)
+            kw_fixed_upper = [part.upper() for part in kw_fixed]
+
+            # TODO: This assumes that the index portion of the keyword will be
+            # no longer than would be allowed for a standard FITS keyword.
+            # Might update this another time to be more explicit as to how many
+            # characters an index can use
+            if len(keyword) <= KEYWORD_LENGTH and kw_fixed != kw_fixed_upper:
+                kw_fixed = kw_fixed_upper
+
+            return join_multiple(kw_fixed, kw_indices)
+
+        for keyword in list(keywords):
+            indices = keywords[keyword].get('indices')
+
+            if indices is None and keyword in base_keywords:
+                # Inherit indices from base class if necessary
+                indices = base_keywords[keyword].get('indices', {})
+
+            if indices:
+                normalized = normalize_indexed(keyword, list(indices))
+            else:
+                normalized = normalize(keyword)
+
+            if keyword != normalized:
+                warnings.warn(
+                    'Keyword %s should be listed in all caps (excluding '
+                    'index placeholders) in schema %s' % (keyword, name))
+                keywords[normalized] = keywords[keyword]
+                del keywords[keyword]
+
+                if keyword in members:
+                    members[normalized] = members[keyword]
+                    del members[keyword]
 
     @classmethod
     def _meta_validate_mandatory(mcls, clsname, keyword, value):
@@ -160,6 +228,32 @@ class MetaSchema(type):
                                     basestring))) or callable(value)):
             raise SchemaDefinitionError(clsname, 'TODO')
 
+    @classmethod
+    def _meta_validate_indices(mcls, clsname, keyword, value):
+        """
+        The 'indices' property must be a dictionary mapping a string
+        (preferably a single lower-case character (TODO: maybe make this
+        a mandatory requirement?) to either:
+
+        * an iterable
+        * a callable (the callable must return an iterable)
+
+        Note: A lot of the validation for this property is performed in the
+        `_normalize_keywords` method as it needs to be performed early on to
+        determine which keywords have indices.
+        """
+
+        for placeholder, values in value.items():
+            if callable(values):
+                # TODO: Maybe check that it takes the correct arguments?
+                continue
+
+            try:
+                iter(values)
+            except TypeError:
+                raise SchemaDefinitionError(clsname, 'TODO')
+
+
 # TODO: Also validate non-existence of duplicate keywords (excepting commentary
 # keywords and RVKC base keywords)
 
@@ -169,24 +263,68 @@ class Schema(object):
     @classmethod
     def validate(cls, header):
         for keyword, properties in cls.keywords.items():
-            keyword_present = keyword in header
-            for propname, propval in properties.items():
-                if (not keyword_present and
-                        propname not in cls.keyword_required_properties):
-                    # Most properties are inapplicable if the keyword is not
-                    # present in the header; so far the only exception is
-                    # checking presence of a mandatory keyword
-                    continue
-                validator = getattr(cls, '_validate_%s' % propname)
-                validator(header, keyword, propval)
+            indices = properties.get('indices', {})
+            if indices:
+                keywords = []
+                placeholders = []
+                values = []
 
+                for ph, vals in indices.items():
+                    placeholders.append(ph)
+
+                    if callable(vals):
+                        vals = vals(keyword, header)
+                        # Validate that the value returned by the callable is
+                        # iterable
+                        try:
+                            iter(vals)
+                        except TypeError:
+                            raise SchemaDefinitionError(cls.__name__,
+                                'the callable used to determine the %r '
+                                'indices for %r did not return an iterable; '
+                                'the function must return an iterable of '
+                                'values to use as indices to this keyword' %
+                                (ph, keyword))
+
+                    values.append(vals)
+
+                for prod in itertools.product(*values):
+                    full_keyword = keyword
+                    for ph, val in itertools.izip(placeholders, prod):
+                        full_keyword = full_keyword.replace(ph, str(val))
+                    keywords.append(full_keyword)
+            else:
+                keywords = [keyword]
+
+            for keyword in keywords:
+                cls._validate_single_keyword(header, keyword, properties)
         return True
+
+    @classmethod
+    def _validate_single_keyword(cls, header, keyword, properties):
+        keyword_present = keyword in header
+        for propname, propval in properties.items():
+            if (not keyword_present and
+                    propname not in cls.keyword_required_properties):
+                # Most properties are inapplicable if the keyword is not
+                # present in the header; so far the only exception is checking
+                # presence of a mandatory keyword
+                continue
+            validator = getattr(cls, '_validate_%s' % propname)
+            validator(header, keyword, propval)
+
 
     @classmethod
     def _validate_mandatory(cls, header, keyword, mandatory):
         if mandatory and keyword not in header:
             raise SchemaValidationError(cls.__name__,
                 'mandatory keyword %r missing from header' % keyword)
+
+    @classmethod
+    def _validate_indices(cls, header, keyword, indices):
+        # This method is a no-op since the 'indices' property is given special
+        # handling
+        return
 
     @classmethod
     def _validate_position(cls, header, keyword, position):

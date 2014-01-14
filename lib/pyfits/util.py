@@ -743,6 +743,67 @@ def fill(text, width, *args, **kwargs):
     return '\n\n'.join(maybe_fill(p) for p in paragraphs)
 
 
+def split_multiple(s, sep, *additional_seps):
+    """
+    Similar to `str.split`, but can partition a string with one or
+    more separators.  Returns a pair of lists:  The first is a list
+    of the parts of the string between each separator (which may be empty
+    strings), and the second is a list of the separators that were found in
+    the string in the order they were found.  So the length of the first list
+    is always one more than the length of the second list--the second list
+    being the separators between the parts in the first list.
+
+    For example:
+
+        >>> split_multiple('abcdefg', 'b', 'e')
+        (['a', 'cd', 'fg'], ['b', 'e'])
+        >>> split_multiple('abcdefg', 'b', 'd', 'e')
+        (['a', 'c', '', 'fg'], ['b', 'd', 'e'])
+
+    Splits are performed in the same order as the separators that are passed
+    in.  So if two separators overlap, the later one is ignored.  For example:
+
+        >>> split_multiple('abcdefg', 'cde', 'de')
+        (['ab, 'fg'], ['cde'])
+    """
+
+    parts = s.split(sep)
+    gaps = [sep] * (len(parts) - 1)
+
+    for sep in additional_seps:
+        new_parts = []
+        for idx, part in enumerate(parts):
+            split = part.split(sep)
+            new_parts += split
+            gaps = gaps[:idx] + ([sep] * (len(split) - 1)) + gaps[idx:]
+
+        parts = new_parts
+
+    return parts, gaps
+
+
+def join_multiple(parts, seps):
+    """Given the output from `split_multiple`, rejoins it into a single
+    string.
+
+    For example:
+
+        >>> parts, seps = split_multiple('abcdefg', 'b', 'e')
+        >>> join_multiple(parts, seps)
+        'abcdefg'
+    """
+
+    result = []
+
+    for part, sep in zip(parts, seps):
+        result.append(part)
+        result.append(sep)
+
+    result.append(parts[-1])
+
+    return ''.join(result)
+
+
 def _array_from_file(infile, dtype, count, sep):
     """Create a numpy array from a file or a file-like object."""
 
