@@ -70,11 +70,148 @@ def _hdu_class_from_header(cls, header):
 
 class BaseSchema(Schema):
     """
-    Base header schema that all valid HDUs must match according to the
-    FITS standard version 3.0 (July 10, 2008).
+    Minimal header schema that all valid HDUs must match according to the FITS
+    Standard version 3.0 (July 10, 2008).
+
+    This excludes the PRIMARY and XTENSION keywords each of which are handled
+    by relevant extensions to this schema.
     """
 
     # Section 4.4.1.1
+    BITPIX = {
+        'position': 1,
+        'value': (int, lambda v, k, h: v in (8, 16, 32, 64, -32, -64)),
+        'mandatory': True
+    }
+    NAXIS = {
+        'position': 2,
+        'value': (int, lambda v, k, h: 0 <= v <= 999),
+        'mandatory': True
+    }
+    NAXISn = {
+        'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},
+        'position': lambda k, h, n: n + 2,
+        'value': (int, lambda v, k, h: 0 <= v),
+        'mandatory': True
+    }
+
+    # Section 4.4.2.1
+    # TODO: DATE
+    ORIGIN = {'value': str}
+    # TODO: BLOCKED (needs support for 'deprecated' property)
+
+    # Section 4.4.2.2
+    # TODO: DATE-OBS
+    INSTRUME = {'value': str}
+    OBSERVER = {'value': str}
+    OBJECT = {'value': str}
+
+    # Section 4.4.2.3
+    AUTHOR = {'value': str}
+    REFERENC = {'value': str}
+
+    # Section 4.4.2.5
+    BSCALE = {
+        'value': float,
+        # TODO: 'default': 1.0,
+        'valid': False
+    }
+    BZERO = {
+        'value': float,
+        # TODO: 'default': 0.0,
+        'valid': False
+    }
+    BUNIT = {
+        # TODO: In Astropy accept a Unit type; possibly include support in
+        # PyFITS for at least validating that units parse correctly
+        'value': str,
+        'valid': False
+    }
+    BLANK = {
+        'value': int,
+        'valid': False
+    }
+    DATAMAX = {
+        'value': float,
+        'valid': False
+    }
+    DATAMIN = {
+        'value': float,
+        'valid': False
+    }
+
+    # Section 4.4.2.6
+    EXTNAME = {'value': str}
+    EXTVER = {
+        'value': int,
+        # TODO: 'default': 1
+    }
+    EXTLEVEL = {
+        'value': (int, lambda v, k, h: v >= 1),
+        # TODO: 'default': 1
+    }
+
+
+class PrimarySchema(BaseSchema):
+    """
+    Base schema for all primary HDU headers conforming to the FITS Standard
+    version 3.0 (July 10, 2008).
+    """
+
+    # Section 4.4.1.1
+    SIMPLE = {
+        'position': 0,
+        'value': (bool, True),
+        'mandatory': True
+    }
+
+    # Section 4.4.2.1
+    EXTEND = {'value': bool}  # TODO: T by default?
+
+
+class ExtensionSchema(BaseSchema):
+    """
+    Base schema for extension HDU headers conforming to the FITS Standard
+    version 3.0 (July 10, 2008), including extension types not otherwise
+    defined by the standard.
+
+    In other words, these are the minimal keywords required to conform to
+    the FITS Standard even for extensions not defined by the standard.
+    """
+
+    # Section 4.4.1.1
+    SIMPLE = {'valid': False}  # "[this] keyword ... must not appear in
+                               # extension headers"
+
+    # Section 4.4.1.2
+    XTENSION = {
+        'position': 0,
+        'mandatory': True
+    }
+    PCOUNT = {
+        'position': lambda k, h: h['NAXIS'] + 3,
+        'value': int,
+        'mandatory': True
+    }
+    GCOUNT = {
+        'position': lambda k, h: h['NAXIS'] + 4,
+        'value': int,
+        'mandatory': True
+    }
+
+    # Section 4.4.2.1
+    # TODO:
+    # EXTEND = {'valid': False}
+
+
+class StandardExtensionSchema(ExtensionSchema):
+    """
+    Base schema for headers of all extension HDU types that are fully specified
+    in the FITS Standard version 3.0 (July 10, 2008).
+    """
+
+    # Section 4.4.1.2
+    XTENSION = {'value': ('IMAGE', 'TABLE', 'BINTABLE')}
 
 
 
@@ -92,6 +229,8 @@ class _BaseHDU(object):
     _padding_byte = '\x00'
 
     _default_name = ''
+
+    schema = BaseSchema
 
     def __new__(cls, data=None, header=None, *args, **kwargs):
         """
@@ -1636,6 +1775,8 @@ class ExtensionHDU(_ValidHDU):
 
     _extension = ''
 
+    schema = StandardExtensionSchema
+
     @classmethod
     def match_header(cls, header):
         """
@@ -1691,6 +1832,8 @@ class NonstandardExtHDU(ExtensionHDU):
     """
 
     _standard = False
+
+    schema = ExtensionSchema
 
     @classmethod
     def match_header(cls, header):

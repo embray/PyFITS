@@ -7,7 +7,51 @@ from ..extern.six.moves import range
 from ..header import Header
 from ..util import (_is_pseudo_unsigned, _unsigned_zero, _is_int,
                     _normalize_slice, lazyproperty)
-from .base import DELAYED, _ValidHDU, ExtensionHDU
+from .base import (DELAYED, _ValidHDU, ExtensionHDU, BaseSchema,
+                   PrimarySchema, ExtensionSchema)
+
+
+class BaseArraySchema(BaseSchema):
+    """
+    Schema for headers of image HDUs (really HDUs containing single arrays) as
+    detailed from Section 4.4 through Section 5 of the FITS Standard version
+    3.0 (July 10, 2008).
+
+    The only thing specific about array-like HDUs is that the keywords listed
+    in this schema are enabled.  Section 4.4.2.5 defines these keywords as
+    reserved in *all* conforming FITS headers, but they are only *valid* in
+    either a primary HDU (include random groups HDUs) or an IMAGE extension.
+    """
+
+    # Section 4.4.2.5
+    BSCALE = {'valid': True}
+    BZERO = {'valid': True}
+    BUNIT = {'valid': True}
+    BLANK = {'valid': lambda k, h: h['BITPIX'] > 0}
+    DATAMAX = {'valid': True}
+    DATAMIN = {'valid': True}
+
+
+class PrimaryArraySchema(BaseArraySchema, PrimarySchema):
+    """
+    Schema for primary headers in FITS HDUs conforming to the FITS Standard
+    version 3.0 (July 10, 2008).  This includes primary image arrays as well as
+    random groups structures.
+
+    Note: Random groups structures require additional validation from the
+    `RandomGroupsSchema` in `pyfits.hdu.groups`.
+    """
+
+
+class ImageExtensionSchema(BaseArraySchema, ExtensionSchema):
+    """
+    Schema for headers of IMAGE extension HDUs as described by Section 7.1 of
+    the FITS Standard version 3.0 (July 10, 2008).
+    """
+
+    XTENSION = {'value': 'IMAGE'}
+    PCOUNT = {'value': 0}
+    GCOUNT = {'value': 1}
 
 
 class _ImageBaseHDU(_ValidHDU):
@@ -30,6 +74,9 @@ class _ImageBaseHDU(_ValidHDU):
                'uint32': 32, 'int64': 64, 'uint64': 64, 'float32': -32,
                'float64': -64}
 
+    schema = BaseArraySchema
+
+    # TODO: Make standard comments part of the schema
     standard_keyword_comments = {
         'SIMPLE': 'conforms to FITS standard',
         'XTENSION': 'Image extension',
@@ -803,6 +850,8 @@ class PrimaryHDU(_ImageBaseHDU):
 
     _default_name = 'PRIMARY'
 
+    schema = PrimaryArraySchema
+
     def __init__(self, data=None, header=None, do_not_scale_image_data=False,
                  uint=False, scale_back=None):
         """
@@ -885,6 +934,8 @@ class ImageHDU(_ImageBaseHDU, ExtensionHDU):
     """
 
     _extension = 'IMAGE'
+
+    schema = ImageExtensionSchema
 
     def __init__(self, data=None, header=None, name=None,
                  do_not_scale_image_data=False, uint=False, scale_back=None):

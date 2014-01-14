@@ -4,8 +4,52 @@ import numpy as np
 from ..column import Column, ColDefs, FITS2NUMPY
 from ..fitsrec import FITS_rec, FITS_record
 from ..util import lazyproperty, _is_int, _is_pseudo_unsigned, _unsigned_zero
-from .image import _ImageBaseHDU, PrimaryHDU
+from .base import PrimarySchema
+from .image import _ImageBaseHDU, PrimaryHDU, BaseArraySchema
 from .table import _TableLikeHDU
+
+
+class RandomGroupsSchema(BaseArraySchema, PrimarySchema):
+    """
+    Schema for headers of random groups primary HDUs as described in Section 6
+    of the FITS Standard version 3.0 (July 10, 2008).
+
+    This is a little like a normal primary array, but with a little additional
+    structure and restrictions.
+    """
+
+    # Section 6.1.1
+    NAXIS = {'value': (int, lambda v, k, h: 1 <= v <= 999)}
+    NAXIS1 = {'value': 0}
+    GROUPS = {
+        'position': lambda k, h: h['NAXIS'] + 3,
+        'value': True,
+        'mandatory': True
+    }
+    PCOUNT = {
+        'position': lambda k, h: h['NAXIS'] + 4,
+        'value': (int, lambda v, k, h: v >= 0),
+        'mandatory': True
+    }
+    GCOUNT = {
+        'position': lambda k, h: h['NAXIS'] + 5,
+        'value': (int, lambda v, k, h: v >= 0),
+        'mandatory': True
+    }
+
+    # Section 6.1.2
+    PTYPEn = {
+        'indices': {'n': lambda k, h: range(1, h['PCOUNT'] + 1)},
+        'value': str
+    }
+    PSCALn = {
+        'indices': {'n': lambda k, h: range(1, h['PCOUNT'] + 1)},
+        'value': float
+    }
+    PZEROn = {
+        'indices': {'n': lambda k, h: range(1, h['PCOUNT'] + 1)},
+        'value': float
+    }
 
 
 class Group(FITS_record):
@@ -243,6 +287,8 @@ class GroupsHDU(PrimaryHDU, _TableLikeHDU):
 
     _width2format = {8: 'B', 16: 'I', 32: 'J', 64: 'K', -32: 'E', -64: 'D'}
     _data_type = GroupData
+
+    schema = RandomGroupsSchema
 
     def __init__(self, data=None, header=None):
         super(GroupsHDU, self).__init__(data=data, header=header)

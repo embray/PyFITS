@@ -22,7 +22,113 @@ from ..column import (FITS2NUMPY, KEYWORD_NAMES, KEYWORD_ATTRIBUTES, TDEF_RE,
 from ..fitsrec import FITS_rec
 from ..header import Header
 from ..util import lazyproperty, _is_int, _str_to_num, _pad_length, deprecated
-from .base import DELAYED, _ValidHDU, ExtensionHDU
+from .base import DELAYED, _ValidHDU, ExtensionHDU, ExtensionSchema
+
+
+def index_tfields(keyword, header):
+    return range(1, header['TFIELDS'] + 1)
+
+
+class BaseTableSchema(ExtensionSchema):
+    """
+    Common schema for headers for TABLE and BINTABLE extension HDUs as
+    described in Sections 7.2 and 7.3 of the FITS Standard version 3.0
+    (July 10, 2008).
+
+    The validation of these keywors is common to both table types--extensions
+    exist with specifics for TABLE and BINTABLE HDUs as `TableExtensionSchema`
+    and `BinTableExtensionSchema` respectively.
+    """
+
+    # Section 7.2.1 and Section 7.3.1
+    BITPIX = {'value': 8}
+    NAXIS = {'value': 2}
+    GCOUNT = {'value': 1}
+    TFIELDS = {
+        'position': 7,
+        'value': (int, lambda v, k, h: 0 <= v <= 999),
+        'mandatory': True
+    }
+    TFORMn = {
+        'indices': {'n': index_tfields},
+        'mandatory': True
+    }
+
+    # Section 7.2.2 and Section 7.3.2
+    TTYPEn = {
+        'indices': {'n': index_tfields},
+        'value': str
+    }
+    TUNITn = {
+        'indices': {'n': index_tfields},
+        'value': str  # TODO: Should be Unit
+    }
+    TSCALn = {
+        'indices': {'n': index_tfields},
+        'value': float,
+        # TODO: 'default': 1.0
+    }
+    TZEROn = {
+        'indices': {'n': index_tfields},
+        'value': float,
+        # TODO: 'default': 0.0
+    }
+    TNULLn = {'indices': {'n': index_tfields}}
+    TDISPn = {'indices': {'n': index_tfields}}
+
+
+class TableExtensionSchema(BaseTableSchema):
+    """
+    Schema for headers of TABLE extension HDUs as described in Section 7.2 of
+    the FITS Standard version 3.0 (July 10, 2008).
+    """
+
+    # Section 7.2.1
+    XTENSION = {'value': 'TABLE'}
+    PCOUNT = {'value': 0}
+    TBCOLn = {
+        'indices': {'n': index_tfields},
+        'value': (int, lambda v, k, h: 1 <= v <= h['NAXIS1']),
+        'mandatory': True
+    }
+
+    # TODO: TFORMn = {'value': valid ASCII table format code}
+
+    # Section 7.2.2
+    # TODO: TSCALn = {'valid': only if TFORMn is character type}
+    # TODO: TZEROn = {'valid': only if TFORMn is character type}
+    TNULLn = {'value': str}
+    # TODO: TDISPn = {'value': valid ASCII table display code}
+
+
+class BinTableExtensionSchema(BaseTableSchema):
+    """
+    Schema for headers of BINTABLE extension HDUs as described in Section 7.3
+    of the FITS Standard version 3.0 (July 10, 2008).
+    """
+
+    # Section 7.3.1
+    XTENSION = {'value': 'BINTABLE'}
+    PCOUNT = {'value': (int, lambda v, k, h: v >= 0)}
+    # TODO: TFORMn = {'value': valid format code for bintable}
+
+    # Section 7.3.2
+    # TODO: TSCALn = {'valid': TFORMn format code is not 'A', 'L', or 'X'}
+    # TODO: TZEROn = {'valid': TFORMn format code is not 'A', 'L', or 'X'}
+    TNULLn = {
+        'value': int,
+        # TODO: 'valid': TFORMn format code is for an integer type
+    }
+    # TODO: TDISPn = {'value': valid display code for bintable}
+    THEAP = {
+        'value': (int, lambda v, k, h: v >= h['NAXIS1'] * h['NAXIS2']),
+        # TODO: 'default': NAXIS1 * NAXIS2
+        'valid': lambda k, h: h['PCOUNT'] != 0
+    }
+    TDIMn = {
+        'indices': {'n': index_tfields},
+        # TODO: 'value': str matching the required format for TDIMn
+    }
 
 
 class FITSTableDumpDialect(csv.excel):
@@ -181,6 +287,8 @@ class _TableBaseHDU(ExtensionHDU, _TableLikeHDU):
     """
     FITS table extension base HDU class.
     """
+
+    schema = BaseTableSchema
 
     def __init__(self, data=None, header=None, name=None, uint=False):
         """
@@ -542,6 +650,8 @@ class TableHDU(_TableBaseHDU):
     FITS ASCII table extension HDU class.
     """
 
+    schema = TableExtensionSchema
+
     _extension = 'TABLE'
     _ext_comment = 'ASCII table extension'
 
@@ -636,6 +746,8 @@ class BinTableHDU(_TableBaseHDU):
     """
     Binary table HDU class.
     """
+
+    schema = BinTableExtensionSchema
 
     _extension = 'BINTABLE'
     _ext_comment = 'binary table extension'

@@ -1,5 +1,8 @@
 from __future__ import division, with_statement
 
+import glob
+import os
+
 import numpy as np
 
 import pyfits as fits
@@ -437,3 +440,17 @@ class TestSchema(PyfitsTestCase):
 
         h1.insert(1, ('FOO', 'bar'))
         assert_raises(SchemaValidationError, TestSchema.validate, h1)
+
+    def test_test_files_against_schema(self):
+        """
+        Ensure that all HDUs in all the test files included in this package
+        validate against their associated schemas.
+        """
+
+        for filename in glob.glob(os.path.join(self.data_dir, '*.fits')):
+            with fits.open(os.path.join(self.data_dir, filename)) as hdul:
+                for hdu in hdul:
+                    # TODO: Enable schema for CompImageHDU
+                    if hdu.__class__.__name__ == 'CompImageHDU':
+                        continue
+                    assert hdu.schema.validate(hdu.header)
