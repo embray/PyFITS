@@ -10,6 +10,14 @@ from pyfits.util import split_multiple, join_multiple
 __all__ = ['Schema']
 
 
+INT_TYPES = (int, long, np.integer)
+FLOAT_TYPES = (float, np.floating)
+COMPLEX_TYPES = (complex, np.complex)
+NUMERIC_TYPES = (int, long, float, complex, np.number)
+BOOL_TYPES = (bool, np.bool_)
+SCALAR_TYPES = (basestring,) + NUMERIC_TYPES + BOOL_TYPES
+
+
 class SchemaError(Exception):
     """Base class for schema-related exceptions."""
 
@@ -182,7 +190,7 @@ class MetaSchema(type):
     def _meta_validate_mandatory(mcls, clsname, keyword, value):
         """The 'mandatory' property must be a boolean or a callable."""
 
-        if not (isinstance(value, (bool, np.bool_)) or callable(value)):
+        if not (isinstance(value, BOOL_TYPES) or callable(value)):
             # TODO: For callables, also check that they support the correct
             # number of arguments
             raise SchemaDefinitionError(clsname,
@@ -199,7 +207,7 @@ class MetaSchema(type):
         the end of the header...
         """
 
-        if not ((isinstance(value, (int, long, np.integer)) and value >= 0) or
+        if not ((isinstance(value, INT_TYPES) and value >= 0) or
                 callable(value)):
             raise SchemaDefinitionError(clsname,
                 "invalid 'position' property for %r; must be either a "
@@ -219,13 +227,10 @@ class MetaSchema(type):
           value is valid
         """
 
-        if not (isinstance(value, (tuple, int, long, np.integer, float,
-                                   np.floating, complex, np.complex, bool,
-                                   np.bool_, basestring)) or
+        if not (isinstance(value, (tuple,) + SCALAR_TYPES) or
                 (isinstance(value, type) and
-                 issubclass(value, (int, long, np.integer, float, np.floating,
-                                    complex, np.complex, bool, np.bool_,
-                                    basestring))) or callable(value)):
+                    issubclass(value, SCALAR_TYPES)) or
+                callable(value)):
             raise SchemaDefinitionError(clsname, 'TODO')
 
     @classmethod
@@ -389,28 +394,25 @@ class Schema(object):
                 raise SchemaValidationError(cls.__name__,
                     'keyword %r is required to have the value %r; got '
                     '%r instead' % (keyword, value_test, value))
-        elif isinstance(value_test, (int, long, float, complex, np.number,
-                                     basestring)):
-            if isinstance(value, (bool, np.bool_)) or value != value_test:
+        elif isinstance(value_test, (basestring,) + NUMERIC_TYPES):
+            if isinstance(value, BOOL_TYPES) or value != value_test:
                 raise SchemaValidationError(cls.__name__,
                     'keyword %r is required to have the value %r; got '
                     '%r instead' % (keyword, value_test, value))
         elif isinstance(value_test, type):
-            if issubclass(value_test, (bool, np.bool_)):
-                valid = isinstance(value, (bool, np.bool_))
-            elif issubclass(value_test, (int, long, np.integer)):
+            if issubclass(value_test, BOOL_TYPES):
+                valid = isinstance(value, BOOL_TYPES)
+            elif issubclass(value_test, INT_TYPES):
                 # FITS (and Python 3) have no int/long distinction, so as long
                 # as the value is one of those it will pass validation as
                 # either an int or a long
-                valid = (not isinstance(value, (bool, np.bool_)) and
-                         isinstance(value, (int, long, np.integer)))
-            elif issubclass(value_test, (float, np.floating)):
+                valid = (not isinstance(value, BOOL_TYPES) and
+                         isinstance(value, INT_TYPES))
+            elif issubclass(value_test, FLOAT_TYPES):
                 # An int is also acceptable for floating point tests
-                valid = isinstance(value, (int, long, np.integer, float,
-                                           np.floating))
-            elif issubclass(value_test, (complex, np.complex)):
-                valid = isinstance(value, (int, long, np.integer, float,
-                                           np.floating, complex, np.complex))
+                valid = isinstance(value, INT_TYPES + FLOAT_TYPES)
+            elif issubclass(value_test, COMPLEX_TYPES):
+                valid = isinstance(value, NUMERIC_TYPES)
             else:
                 valid = isinstance(value, value_test)
 
@@ -432,7 +434,7 @@ class Schema(object):
                     'for the keyword %r; the value validation function must '
                     'not raise an exception: %r' % (keyword, e))
 
-            if not isinstance(result, (bool, np.bool_)):
+            if not isinstance(result, BOOL_TYPES):
                 raise SchemaDefinitionError(cls.__name__,
                     'the value valudation function for keyword %r must return '
                     'a boolean value; instead it returned %r' %
