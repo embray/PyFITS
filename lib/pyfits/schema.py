@@ -44,7 +44,8 @@ class SchemaValidationError(SchemaError):
 
 class MetaSchema(type):
     schema_attributes = set(['keywords'])
-    keyword_properties = set(['mandatory', 'position', 'value', 'indices'])
+    keyword_properties = set(['mandatory', 'position', 'value', 'indices',
+                              'valid'])
     keyword_required_properties = set(['mandatory'])
 
     def __new__(mcls, name, bases, members):
@@ -197,6 +198,19 @@ class MetaSchema(type):
                 "invalid 'mandatory' property for %r; must be either a "
                 "bool or a callable returning a bool; got %r" %
                 (keyword, value))
+
+    @classmethod
+    def _meta_validate_valid(mcls, clsname, keyword, value):
+        """The 'valid' property must be a boolean or a callable."""
+
+        if not (isinstance(value, BOOL_TYPES) or callable(value)):
+            # TODO: For callables, also check that they support the correct
+            # number of arguments
+            raise SchemaDefinitionError(clsname,
+                "invalid 'valid' property for %r; must be either a "
+                "bool or a callable returning a bool; got %r" %
+                (keyword, value))
+
 
     @classmethod
     def _meta_validate_position(mcls, clsname, keyword, value):
@@ -352,9 +366,22 @@ class Schema(object):
 
     @classmethod
     def _validate_mandatory(cls, header, keyword, indices, mandatory):
+        if not isinstance(mandatory, BOOL_TYPES):
+            mandatory = _call_with_indices(mandatory, indices, keyword,
+                                           header)
+
         if mandatory and keyword not in header:
             raise SchemaValidationError(cls.__name__,
                 'mandatory keyword %r missing from header' % keyword)
+
+    @classmethod
+    def _validate_valid(cls, header, keyword, indices, valid):
+        if not isinstance(valid, BOOL_TYPES):
+            valid = _call_with_indices(valid, indices, keyword, header)
+
+        if not valid and keyword in header:
+            raise SchemaValidationError(cls.__name__,
+                'keyword %r is invalid in this header' % keyword)
 
     @classmethod
     def _validate_indices(cls, header, keyword, indices, indices_):

@@ -324,6 +324,40 @@ class TestSchema(PyfitsTestCase):
         del header['TEST3']
         assert_raises(SchemaValidationError, TestSchema_D.validate, header)
 
+    def test_invalid_keyword(self):
+        """
+        By default all keywords listed in a schema are 'valid'.  This tests
+        that if a header contains a keyword marked with 'valid': False in the
+        schema then the header is invalid.
+        """
+
+        class TestSchema1(fits.Schema):
+            # If TEST is present in the header it is invalid, but it *may*
+            # be marked valid in an extension, in which case its value must be
+            # an int
+            TEST = {
+                'value': int,
+                'valid': False
+            }
+
+        h1 = fits.Header([('TEST', False)])
+        assert_raises(SchemaValidationError, TestSchema1.validate, h1)
+
+        # Still invalid even if the value is set to the correct type
+        h1['TEST'] = 1
+        assert_raises(SchemaValidationError, TestSchema1.validate, h1)
+
+        class TestSchema2(TestSchema1):
+            TEST = {'valid': True}
+
+        # Should pass
+        assert TestSchema2.validate(h1)
+
+        # Should fail since the type is wrong
+        h1['TEST'] = True
+        assert_raises(SchemaValidationError, TestSchema2.validate, h1)
+
+
     def test_indexed_keywords(self):
         """
         Basic test for keyword definitions that can match a set of keywords
@@ -393,7 +427,7 @@ class TestSchema(PyfitsTestCase):
                 'value': (int, lambda v, k, h: 999 >= v >= 0),
                 'mandatory': True}
             NAXISn = {
-                'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},\
+                'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},
                 'position': lambda k, h, n: n,
                 'value': (int, lambda v, k, h: v >= 0)
             }
