@@ -382,3 +382,24 @@ class TestSchema(PyfitsTestCase):
         h1['NAXIS2'] = 2
         assert TestSchema2.validate(h1)
 
+    def test_position_dependent_on_index(self):
+        """
+        Test indexed keyword with callable position test that depends on the
+        keyword's index value (the NAXISn case).
+        """
+
+        class TestSchema(fits.Schema):
+            NAXIS = {
+                'value': (int, lambda v, k, h: 999 >= v >= 0),
+                'mandatory': True}
+            NAXISn = {
+                'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},\
+                'position': lambda k, h, n: n,
+                'value': (int, lambda v, k, h: v >= 0)
+            }
+
+        h1 = fits.Header([('NAXIS', 2), ('NAXIS1', 1), ('NAXIS2', 2)])
+        assert TestSchema.validate(h1)
+
+        h1.insert(1, ('FOO', 'bar'))
+        assert_raises(SchemaValidationError, TestSchema.validate, h1)

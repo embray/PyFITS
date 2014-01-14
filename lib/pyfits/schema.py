@@ -272,10 +272,11 @@ class Schema(object):
             if indices:
                 keywords = cls._interpolate_indices(header, keyword, indices)
             else:
-                keywords = [keyword]
+                keywords = [(keyword, {})]
 
-            for keyword in keywords:
-                cls._validate_single_keyword(header, keyword, properties)
+            for keyword, index_values in keywords:
+                cls._validate_single_keyword(header, keyword, properties,
+                                             index_values)
         return True
 
     @classmethod
@@ -327,14 +328,16 @@ class Schema(object):
 
         for prod in itertools.product(*values):
             full_keyword = keyword
+            index_values = {}
             for ph, val in itertools.izip(placeholders, prod):
                 full_keyword = full_keyword.replace(ph, str(val))
-            keywords.append(full_keyword)
+                index_values[ph] = val
+            keywords.append((full_keyword, index_values))
 
         return keywords
 
     @classmethod
-    def _validate_single_keyword(cls, header, keyword, properties):
+    def _validate_single_keyword(cls, header, keyword, properties, indices):
         keyword_present = keyword in header
         for propname, propval in properties.items():
             if (not keyword_present and
@@ -344,23 +347,29 @@ class Schema(object):
                 # presence of a mandatory keyword
                 continue
             validator = getattr(cls, '_validate_%s' % propname)
-            validator(header, keyword, propval)
+            validator(header, keyword, indices, propval)
 
 
     @classmethod
-    def _validate_mandatory(cls, header, keyword, mandatory):
+    def _validate_mandatory(cls, header, keyword, indices, mandatory):
         if mandatory and keyword not in header:
             raise SchemaValidationError(cls.__name__,
                 'mandatory keyword %r missing from header' % keyword)
 
     @classmethod
-    def _validate_indices(cls, header, keyword, indices):
+    def _validate_indices(cls, header, keyword, indices, indices_):
         # This method is a no-op since the 'indices' property is given special
         # handling
         return
 
     @classmethod
-    def _validate_position(cls, header, keyword, position):
+    def _validate_position(cls, header, keyword, indices, position):
+        if not isinstance(position, INT_TYPES):
+            # Need to check this explicitly, since types are almost always also
+            # callable; if not an int position *must* be callable or else the
+            # schema would not have valided against the MetaSchema
+            position = _call_with_indices(position, indices, keyword, header)
+
         found = header.index(keyword)
         if found != position:
             raise SchemaValidationError(cls.__name__,
@@ -369,13 +378,13 @@ class Schema(object):
                 'position is zero-indexed)' % (keyword, position, found))
 
     @classmethod
-    def _validate_value(cls, header, keyword, value_test):
+    def _validate_value(cls, header, keyword, indices, value_test):
         # any string, Python numeric type, numpy numeric type, or boolean type
         # is a valid scalar value
 
         if isinstance(value_test, tuple):
             for test in value_test:
-                cls._validate_value(header, keyword, test)
+                cls._validate_value(header, keyword, indices, test)
 
             return
 
@@ -427,7 +436,8 @@ class Schema(object):
             # schema can provide a custom validation error message
 
             try:
-                result = value_test(value, keyword, header)
+                result = _call_with_indices(value_test, indices,
+                                            value, keyword, header)
             except Exception, e:
                 raise SchemaDefinitionError(cls.__name__,
                     'an exception occurred in the value validation function '
@@ -445,3 +455,22 @@ class Schema(object):
                     'the value of keyword %r failed validation; see the '
                     'schema in which this keyword was defined for details '
                     'on its correct value format' % keyword)
+
+
+def _call_with_indices(func, indices, *args):
+    """
+    Calls the given func, with given args, optionally passing in keyword
+    arguments from the ``indices`` dict if it is not empty.
+
+    Support for indices in the given func may be optional, however, so if
+    calling it with keyword arguments fails, fall back on calling it without
+    keyword arguments.
+    """
+
+    if indices:
+        try:
+            return func(*args, **indices)
+        except TypeError:
+            pass
+
+    return func(*args)
