@@ -15,7 +15,7 @@ import pyfits
 from ..card import Card
 from ..file import _File
 from ..header import Header, HEADER_END_RE
-from ..schema import Schema
+from ..schema import Schema, validate_fits_datetime
 from ..util import (first, lazyproperty, _is_int, _is_pseudo_unsigned,
                     _unsigned_zero, _pad_length, itersubclasses, encode_ascii,
                     decode_ascii, deprecated, _get_array_mmap, _array_to_file)
@@ -96,12 +96,19 @@ class BaseSchema(Schema):
     }
 
     # Section 4.4.2.1
-    # TODO: DATE
+    DATE = {'value': (str, validate_fits_datetime)}
     ORIGIN = {'value': str}
     # TODO: BLOCKED (needs support for 'deprecated' property)
 
     # Section 4.4.2.2
-    # TODO: DATE-OBS
+    # This one is a bit tricky: The FITS Standard prescribes that any keyword
+    # beginning with 'DATE' should be handled as a date(time) equivalently to
+    # DATE-OBS; this encompasses DATE-OBS itself implicitly
+    DATEx = {
+        'indices': {'x': lambda k, h: [kw[4:] for kw in h['DATE?*']]},
+        'value': (str, validate_fits_datetime)
+    }
+    TELESCOP = {'value': str}
     INSTRUME = {'value': str}
     OBSERVER = {'value': str}
     OBJECT = {'value': str}

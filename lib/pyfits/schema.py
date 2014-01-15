@@ -1,5 +1,8 @@
 import itertools
+import re
 import warnings
+
+from datetime import datetime
 
 import numpy as np
 
@@ -7,7 +10,7 @@ from pyfits.card import KEYWORD_LENGTH
 from pyfits.util import split_multiple, join_multiple
 
 
-__all__ = ['Schema']
+__all__ = ['Schema', 'validate_fits_datetime']
 
 
 INT_TYPES = (int, long, np.integer)
@@ -482,6 +485,70 @@ class Schema(object):
                     'the value of keyword %r failed validation; see the '
                     'schema in which this keyword was defined for details '
                     'on its correct value format' % keyword)
+
+
+_FITS_DATE_FMT = '%Y-%m-%d'
+# TODO: The standard also supports optional fractions of seconds.
+# Unfortunately the format code %f for that is not supported in Python 2.5 so
+# we will handle it manually in validate_fits_datetime, but once 2.5 support is
+# dropped we can use %f
+_FITS_DATETIME_FMT = _FITS_DATE_FMT + 'T%H:%M:%S'
+# Only for dates before year 2000
+_FITS_LEGACY_DATE_FMT = '%d/%m/%y'
+_FITS_DATETIME_RE = re.compile('|'.join([
+    r'(?P<date>\d{4}-[01]\d-[0123]\d$)',
+    r'(?:(?P<datetime>\d{4}-[01]\d-[0123]\dT[012]\d:[0-5]\d:[0-5]\d)'
+       r'(?P<microseconds>\.\d+)?$)',
+    r'(?P<legacy>[0123]\d/[01]\d/\d\d$)']))
+
+
+# TODO: Perhaps use a more generalized version of this function to actually
+# return datetime objects from the Header for known date keywords...
+def validate_fits_datetime(value, keyword, header):
+    """
+    Validate date/time values in FITS headers according to the format given
+    for the ``DATE`` keyword in Section 4.4.2.1 of the FITS Standard version
+    3.0 (July 10, 2008).
+
+    Note: the ``keyword`` and ``header`` arguments are not currently used
+    directly, but are included to match the required interface for keyword
+    value validation functions.
+    """
+
+    # There are a few different time and/or date formats supported by the FITS
+    # standard, including an older format only valid pre-2000.  So we have to
+    # do a bit of fancy footwork to determine which format to use, and cannot
+    # simply rely on strptime alone
+    if not isinstance(value, basestring):
+        return False
+
+    # TODO: Value validation functions need a way to return custom error
+    # messages to the schema validator as there are many ways a datetime value
+    # can go wrong that should be communicated to the user
+    m = _FITS_DATETIME_RE.match(value)
+
+    if not m:
+        # TODO: Does not even begin to match one of the valid FITS datetime
+        # formats; the user should be informed as much of this
+        return False
+
+    for group, fmt in [('datetime', _FITS_DATETIME_FMT),
+                       ('date', _FITS_DATE_FMT),
+                       ('legacy', _FITS_LEGACY_DATE_FMT)]:
+        # Currently don't do anything with microseconds, but the regexp ensures
+        # that if they are present they're valid
+        # Parse the datetime to ensure that it's a logical datetime
+        if not m.group(group):
+            continue
+
+        try:
+            datetime.strptime(m.group(group), fmt)
+        except ValueError:
+            # Invalidate datetime
+            return False
+        return True
+    else:
+        return False
 
 
 def _call_with_indices(func, indices, *args):

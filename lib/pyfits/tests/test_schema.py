@@ -6,7 +6,8 @@ import os
 import numpy as np
 
 import pyfits as fits
-from pyfits.schema import SchemaDefinitionError, SchemaValidationError
+from pyfits.schema import (SchemaDefinitionError, SchemaValidationError,
+                           validate_fits_datetime)
 from pyfits.tests import PyfitsTestCase
 from pyfits.tests.util import catch_warnings
 
@@ -440,6 +441,74 @@ class TestSchema(PyfitsTestCase):
 
         h1.insert(1, ('FOO', 'bar'))
         assert_raises(SchemaValidationError, TestSchema.validate, h1)
+
+    def test_validate_datetime(self):
+        """
+        Test validation of datetime keywords against the formats allowed by
+        the FITS Standard.
+        """
+
+        class TestSchema(fits.Schema):
+            DATE = {'value': (str, validate_fits_datetime)}
+
+        header = fits.Header([('DATE', 1234)])
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE'] = '1234'
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE'] = '2001-01-02T33:44:55'
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        # A valid-looking date, but not an actual date
+        header['DATE'] = '2001-02-29'
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE'] = '2001-02-28'
+        assert TestSchema.validate(header)
+
+        header['DATE'] = '2001-02-28T11:22:33'
+        assert TestSchema.validate(header)
+
+        # Incomplete fraction of seconds
+        header['DATE'] = '2001-02-28T11:22:33.'
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE'] = '2001-02-28T11:33:33.0'
+        assert TestSchema.validate(header)
+
+        header['DATE'] = '2001-02-28T11:33:33.123'
+        assert TestSchema.validate(header)
+
+        header['DATE'] = '29/02/99'
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE'] = '28/02/99'
+        assert TestSchema.validate(header)
+
+    def test_datexxxx(self):
+        """
+        Test implementation of the DATExxxx requirement from the FITS Standard
+        that all keywords beginning with 'DATE' are validated as date(times).
+        """
+
+        class TestSchema(fits.Schema):
+            # Ensure that just 'DATE' is excluded from DATEx
+            DATE = {'value': True}
+            DATEx = {
+                'indices': {'x': lambda k, h: [kw[4:] for kw in h['DATE?*']]},
+                'value': (str, validate_fits_datetime)
+            }
+
+        header = fits.Header([('DATE', True), ('DATE-OBS', '1'),
+                              ('DATE-FOO', '2')])
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE-OBS'] = '2000-01-01T00:00:00.0'
+        assert_raises(SchemaValidationError, TestSchema.validate, header)
+
+        header['DATE-FOO'] = '2000-01-01T00:00:00.0'
+        assert TestSchema.validate(header)
 
     def test_test_files_against_schema(self):
         """
