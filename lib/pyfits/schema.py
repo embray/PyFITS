@@ -229,7 +229,7 @@ class MetaSchema(type):
             raise SchemaDefinitionError(clsname,
                 "invalid 'position' property for %r; must be either a "
                 "non-negative integer or a callable returning a non-negative "
-                "integer; got %r" % (keyword, value))
+                "integer or boolean; got %r" % (keyword, value))
 
     @classmethod
     def _meta_validate_value(mcls, clsname, keyword, value):
@@ -399,6 +399,26 @@ class Schema(object):
             # callable; if not an int position *must* be callable or else the
             # schema would not have valided against the MetaSchema
             position = _call_with_indices(position, indices, keyword, header)
+
+            if not ((isinstance(position, INT_TYPES) and position >= 0) or
+                    isinstance(position, BOOL_TYPES)):
+                raise SchemaDefinitionError(cls.__name__,
+                    'position validation function for keyword %r is required '
+                    'to return either a non-negative integer or a boolean; '
+                    'returned %r instead' % (keyword, position))
+
+            if isinstance(position, BOOL_TYPES):
+                # In this case, the validation function just performs a custom
+                # check that the keyword's position is valid--it does not
+                # return a specific position that the keyword must have
+                if position:
+                    return
+
+                raise SchemaValidationError(cls.__name__,
+                    'keyword %r is not in a valid position in the header, '
+                    'but a required position for this keyword has not been '
+                    'specified; please check the schema definition to '
+                    'determine where this keyword should be positioned')
 
         found = header.index(keyword)
         if found != position:

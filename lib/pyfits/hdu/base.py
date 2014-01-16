@@ -98,7 +98,13 @@ class BaseSchema(Schema):
     # Section 4.4.2.1
     DATE = {'value': (str, validate_fits_datetime)}
     ORIGIN = {'value': str}
-    # TODO: BLOCKED (needs support for 'deprecated' property)
+    BLOCKED = {
+        'position': lambda k, h: h.index(k) <= 35,
+        'value': True,
+        # TODO: 'deprecated': True  # determine semantics for deprecated
+                                    # keywords
+        'valid': False  # Only valid in PRIMARY headers
+    }
 
     # Section 4.4.2.2
     # This one is a bit tricky: The FITS Standard prescribes that any keyword
@@ -174,6 +180,7 @@ class PrimarySchema(BaseSchema):
 
     # Section 4.4.2.1
     EXTEND = {'value': bool}  # TODO: T by default?
+    BLOCKED = {'valid': True}
 
 
 class ExtensionSchema(BaseSchema):
