@@ -6,6 +6,8 @@ import os
 import numpy as np
 
 import pyfits as fits
+from pyfits.hdu.base import BaseSchema, PrimarySchema
+from pyfits.hdu.image import BaseArraySchema, PrimaryArraySchema
 from pyfits.schema import (SchemaDefinitionError, SchemaValidationError,
                            validate_fits_datetime)
 from pyfits.tests import PyfitsTestCase
@@ -327,6 +329,44 @@ class TestSchema(PyfitsTestCase):
 
         del header['TEST3']
         assert_raises(SchemaValidationError, TestSchema_D.validate, header)
+
+    def test_schema_composition_2(self):
+        """
+        Test for an actual bug that appeared in the `PrimaryArraySchema` where
+        the 'valid' property of the ``BLOCKED`` keyword was not handled
+        correctly.
+        """
+
+        # BaseArraySchema inherits directly from BaseSchema, so their
+        # BLOCKED properties should be identical
+        assert 'BLOCKED' in BaseSchema._explicit_keywords
+        assert 'BLOCKED' not in BaseArraySchema._explicit_keywords
+
+        assert BaseSchema.BLOCKED == BaseArraySchema.BLOCKED
+        assert (BaseSchema.keywords['BLOCKED'] ==
+                BaseArraySchema.keywords['BLOCKED'])
+
+        # But in fact, as BaseArraySchema does not explicitly say *anything*
+        # about BLOCKED, its BLOCKED keyword should actually be looked up
+        # through its base class
+        assert 'BLOCKED' not in BaseArraySchema.__dict__
+        assert BaseArraySchema.BLOCKED is BaseSchema.BLOCKED
+
+        # On the other hand PrimarySchema does partially override
+        # BaseSchema.BLOCKED
+        assert 'BLOCKED' in PrimarySchema._explicit_keywords
+        assert PrimarySchema.BLOCKED is not BaseSchema.BLOCKED
+        assert PrimarySchema.BLOCKED['valid'] == True
+        assert PrimarySchema.keywords['BLOCKED']['valid'] == True
+
+        # Since BaseArraySchema does not explicitly say anything about BLOCKED,
+        # but PrimarySchema does, then even though the bases of
+        # PrimaryArraySchema are (BaseArraySchema, PrimarySchema), its values
+        # for BLOCKED should come primarily from PrimarySchema first.
+        assert 'BLOCKED' not in PrimaryArraySchema._explicit_keywords
+        assert PrimaryArraySchema.BLOCKED == PrimarySchema.BLOCKED
+        assert (PrimaryArraySchema.keywords['BLOCKED'] ==
+                PrimarySchema.keywords['BLOCKED'])
 
     def test_invalid_keyword(self):
         """

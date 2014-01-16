@@ -58,7 +58,8 @@ class MetaSchema(type):
             if not isinstance(base_cls, mcls):
                 continue
 
-            for keyword, properties in base_cls.keywords.items():
+            for keyword in base_cls._explicit_keywords:
+                properties = base_cls.keywords[keyword]
                 if keyword in base_keywords:
                     base_keywords[keyword].update(properties)
                 else:
@@ -79,6 +80,11 @@ class MetaSchema(type):
                 keywords[key] = value
 
         mcls._normalize_keywords(name, members, keywords, base_keywords)
+
+        # This is a set of keywords that were *explicitly* defined properties
+        # in this schema (as opposed to inherited from a base schema) either
+        # via a class attribute or the 'keywords' dict
+        members['_explicit_keywords'] = set(keywords)
 
         for keyword, properties in keywords.items():
             # validate each of the keyword properties
