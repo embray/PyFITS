@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 
 from pyfits.card import KEYWORD_LENGTH
-from pyfits.util import split_multiple, join_multiple
+from pyfits.util import split_multiple, join_multiple, product
 
 
 __all__ = ['Schema', 'validate_fits_datetime']
@@ -354,7 +354,7 @@ class Schema(object):
 
             values.append(vals)
 
-        for prod in itertools.product(*values):
+        for prod in product(*values):
             full_keyword = keyword
             index_values = {}
             for ph, val in itertools.izip(placeholders, prod):

@@ -1084,3 +1084,17 @@ if sys.version_info[:2] < (2, 6):
 
             return cls_ns[property_name]
     __builtin__.property = property
+
+
+    # Add implementation of itertools.product which is not available in Python
+    # 2.5--this implementation is verbatim from the Python docs:
+    # http://docs.python.org/2/library/itertools.html#itertools.product
+    def product(*args, **kwargs):
+        pools = map(tuple, args) * kwargs.get('repeat', 1)
+        result = [[]]
+        for pool in pools:
+            result = [x + [y] for x in result for y in pool]
+        for prod in result:
+            yield tuple(prod)
+else:
+    product = itertools.product
