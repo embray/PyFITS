@@ -44,6 +44,11 @@ class SchemaValidationError(SchemaError):
 # is detected; in the future we will collect all schema violations and
 # encapsulate them in a single SchemaValidationError
 
+# TODO: Currently different versions of some standards require different
+# schemas to validate.  Schemas should be able to provide heuristics for
+# determining what version of a standard a header is consistent with, and
+# modify itself as necessary to support that version
+
 
 class MetaSchema(type):
     schema_attributes = set(['keywords'])

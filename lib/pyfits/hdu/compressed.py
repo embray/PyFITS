@@ -18,7 +18,7 @@ from ..util import (lazyproperty, _is_pseudo_unsigned, _unsigned_zero,
                     deprecated, _is_int, PyfitsPendingDeprecationWarning)
 from .base import DELAYED, ExtensionHDU
 from .image import _ImageBaseHDU, ImageHDU
-from .table import BinTableHDU
+from .table import BinTableHDU, BinTableExtensionSchema
 
 try:
     from pyfits import compression
@@ -50,6 +50,10 @@ DEFAULT_HCOMP_SMOOTH = 0
 DEFAULT_BLOCK_SIZE = 32
 DEFAULT_BYTE_PIX = 4
 
+# These are valid values for the ZCMPTYPE keyword
+COMPRESSION_TYPES = ['GZIP_1', 'GZIP_2', 'RICE_1', 'PLIO_1', 'HCOMPRESS_1',
+                     'RICE_ONE']
+
 
 # CFITSIO version-specific features
 if COMPRESSION_SUPPORTED:
@@ -65,6 +69,84 @@ if COMPRESSION_SUPPORTED:
 
 COMPRESSION_KEYWORDS = set(['ZIMAGE', 'ZCMPTYPE', 'ZBITPIX', 'ZNAXIS',
                             'ZMASKCMP', 'ZSIMPLE', 'ZTENSION', 'ZEXTEND'])
+
+
+class CompImageSchema(BinTableExtensionSchema):
+    """
+    Schema for headers of compressed image binary tables as defined by the
+    Tiled Image Convention version 2.3 (July 2, 2013).
+    """
+
+    # Section 2
+    ZIMAGE = {
+        'value': True,
+        'mandatory': True
+    }
+    ZCMPTYPE = {
+        'value': lambda v, k, h: v in COMPRESSION_TYPES,
+        'mandatory': True
+    }
+    ZBITPIX = {
+        'value': (int, lambda v, k, h: v in (8, 16, 32, 64, -32, -64)),
+        'mandatory': True
+    }
+    NAXIS = {
+        'value': (int, lambda v, k, h: 0 <= v <= 999),
+        'mandatory': True
+    }
+    NAXISn = {
+        'indices': {'n': lambda k, h: range(1, h['ZNAXIS'] + 1)},
+        'value': (int, lambda v, k, h: v >= 1),
+        'mandatory': True
+    }
+    ZTILEn = {
+        'indices': {'n': lambda k, h: range(1, h['ZNAXIS'] + 1)},
+        'value': (int, lambda v, k, h: v >= 1)
+        # TODO: 'default': lambda k, h, n: h['ZNAXIS1'] if n == 1 else 1
+    }
+    # TODO: ZNAMEn and ZVALn will require special handling
+    ZMASKCMP = {'value': lambda v, k, h: v in COMPRESSION_TYPES}
+    ZSIMPLE = {
+        'value': True,
+        'valid': lambda k, h: 'ZTENSION' not in h
+    }
+    ZTENSION = {
+        'value': 'IMAGE',
+        'valid': lambda k, h: 'ZSIMPLE' not in h
+    }
+    ZEXTEND = {
+        'value': bool,
+        'valid': lambda k, h: 'ZSIMPLE' in h
+    }
+    ZBLOCKED = {
+        'value': True,
+        'valid': lambda k, h: 'ZSIMPLE' in h
+    }
+    ZPCOUNT = {
+        'value': (int, 0),
+        'valid': lambda k, h: 'ZTENSION' in h
+    }
+    ZGCOUNT = {
+        'value': (int, 1),
+        'valid': lambda k, h: 'ZTENSION' in h
+    }
+    # TODO: ZHECKSUM
+    # TODO: ZDATASUM  # Need to implement checksum keyword validation for
+                      # normal HDUs as well
+    ZQUANTIZ = {'value': lambda v, k, h: v in QUANTIZE_METHOD_NAMES.values()}
+    ZDITHER0 = {'value': (int, lambda v, k, h: 1 <= v <= 10000)}
+
+    # Section 4.4.2.5
+    # These keywords are not normally valid in a binary table, but *are* valid
+    # in an image; in the case of compressed images these keywords are
+    # interpreted the same as they would be interpreted in a normal
+    # uncompressed image
+    BSCALE = {'valid': True}
+    BZERO = {'valid': True}
+    BUNIT = {'valid': True}
+    BLANK = {'valid': lambda k, h: h['BITPIX'] > 0}
+    DATAMAX = {'valid': True}
+    DATAMIN = {'valid': True}
 
 
 class CompImageHeader(Header):
@@ -356,6 +438,8 @@ class CompImageHDU(BinTableHDU):
     """
     Compressed Image HDU class.
     """
+
+    schema = CompImageSchema
 
     # Maps deprecated keyword arguments to __init__ to their new names
     DEPRECATED_KWARGS = {
@@ -765,8 +849,7 @@ class CompImageHDU(BinTableHDU):
 
         # Set the compression type in the table header.
         if compression_type:
-            if compression_type not in ['RICE_1', 'GZIP_1', 'PLIO_1',
-                                        'HCOMPRESS_1']:
+            if compression_type not in COMPRESSION_TYPES:
                 warnings.warn('Unknown compression type provided.  Default '
                               '(%s) compression used.' %
                               DEFAULT_COMPRESSION_TYPE)

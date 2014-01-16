@@ -559,7 +559,8 @@ class TestSchema(PyfitsTestCase):
         for filename in glob.glob(os.path.join(self.data_dir, '*.fits')):
             with fits.open(os.path.join(self.data_dir, filename)) as hdul:
                 for hdu in hdul:
-                    # TODO: Enable schema for CompImageHDU
-                    if hdu.__class__.__name__ == 'CompImageHDU':
-                        continue
-                    assert hdu.schema.validate(hdu.header)
+                    # Use ._header instead of .header to ensure that the raw
+                    # header is used for compressed image HDUs
+                    # TODO: Maybe determine a better way of handling this
+                    # distinction?
+                    assert hdu.schema.validate(hdu._header)
