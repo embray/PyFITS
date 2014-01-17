@@ -165,7 +165,51 @@ class BaseSchema(Schema):
     }
 
 
-class PrimarySchema(BaseSchema):
+class ChecksumSchema(Schema):
+    """
+    Schema for the latest version of the FITS Checksum convention
+    (Seaman, Pence, Rots 2002).
+
+    PyFITS supports this convention, but the keywords its defines are kept in
+    its own schema to emphasize that they are not part of the FITS Standard.
+    This class can basically be used as a mix-in to support the convention and
+    reserve the keywords defined in the convention.
+    """
+
+    # Note: Must wrap valid_datasum call in a lambda since ChecksumSchema isn't
+    # defined yet
+    DATASUM = {
+        'value': (str,
+                  lambda v, k, h: ChecksumSchema.validate_datasum(v, k, h))
+    }
+    # The CHECKSUM keyword can contain any character string that would force
+    # the 32-bit 1's complement of the HDU data to be 0.  Although the
+    # conventions makes a particular recommendation for how to compute and
+    # represent this checksum, technically it can take any form; this schema
+    # does not check that the checksum is actually valid for the HDU
+    CHECKSUM = {'value': str}
+
+    @staticmethod
+    def validate_datasum(value, keyword, header):
+        """
+        The DATASUM keyword should be a string containing an unsigned 32-bit
+        integer per Section 2 of the documentation for the convention.
+        """
+
+        # An empty-string is allowed for DATASUM representing an unknown or
+        # undefined value
+        if not value.strip():
+            return True
+
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return False
+
+        return 0 <= value <= 2**32 - 1
+
+
+class PrimarySchema(BaseSchema, ChecksumSchema):
     """
     Base schema for all primary HDU headers conforming to the FITS Standard
     version 3.0 (July 10, 2008).
@@ -183,7 +227,7 @@ class PrimarySchema(BaseSchema):
     BLOCKED = {'valid': True}
 
 
-class ExtensionSchema(BaseSchema):
+class ExtensionSchema(BaseSchema, ChecksumSchema):
     """
     Base schema for extension HDU headers conforming to the FITS Standard
     version 3.0 (July 10, 2008), including extension types not otherwise
