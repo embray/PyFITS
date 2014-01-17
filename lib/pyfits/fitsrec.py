@@ -994,3 +994,62 @@ class FITS_rec(np.recarray):
 
         # Store the updated heapsize
         self._heapsize = heapsize
+
+
+class encoded_text_array(np.ndarray):
+    _subtype_cache = {}
+
+    def __new__(cls, shape, itemsize=1, encoding=None, buffer=None,
+                offset=0, strides=None, order=None):
+        if buffer is None:
+            self = super(encoded_text_array, cls).__new__(
+                cls, shape, (np.string_, itemsize), order=order)
+        else:
+            self = super(encoded_text_array).__new__(
+                cls, shape, (np.string_, itemsize), buffer=buffer,
+                offset=offset, strides=strides, order=order)
+        if encoding is None:
+            # Maybe a problematic default?
+            encoding = sys.getdefaultencoding()
+
+        self.encoding = encoding
+
+    @classmethod
+    def with_encoding(cls, encoding):
+        subtype = cls._subtype_cache.get(encoding.lower())
+
+        if subtype is not None:
+            return subtype
+
+        normalized_encoding = encoding.lower().replace('-', '_')
+        subtype = type('{0}_encoded_text_array'.format(normalized_encoding),
+                       (cls,), {'encoding': encoding})
+        cls._subtype_cache[encoding.lower()] = subtype
+        return subtype
+
+    def __repr__(self):
+        prefix = 'array('
+        body = np.array2string(self, prefix=prefix, separator=', ')
+        return '{0}{1})'.format(prefix, body)
+
+    def __getitem__(self, key):
+        value = super(encoded_text_array, self).__getitem__(key)
+        if not value.shape:
+            return value.decode(self.encoding)
+        else:
+            return value
+
+    def __setitem__(self, key, value):
+        if isinstance(value, str):
+            value = value.encode(self.encoding)
+        elif isinstance(value, encoded_text_array):
+            if value.encoding != self.encoding:
+                decoded = np.char.decode(value, encoding=value.encoding)
+                value = np.char.encode(decoded, encoding=self.encoding)
+            # else pass; the encoding is already correct
+        elif isinstance(value, np.ndarray) and value.dtype.char == 'U':
+            value = np.char.encode(value, encoding=self.encoding)
+        else:
+            value = np.char.encode(np.asarray(value, dtype='U'),
+                                   encoding=self.encoding)
+        super(encoded_text_array, self).__setitem__(key, value)
