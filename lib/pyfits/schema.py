@@ -255,7 +255,12 @@ class MetaSchema(type):
           value is valid
         """
 
-        if not (isinstance(value, (tuple,) + SCALAR_TYPES) or
+        if isinstance(value, tuple):
+            for val in value:
+                mcls._meta_validate_value(clsname, keyword, val)
+            return
+
+        if not (isinstance(value, SCALAR_TYPES) or
                 (isinstance(value, type) and
                     issubclass(value, SCALAR_TYPES)) or
                 callable(value)):
@@ -507,7 +512,7 @@ class Schema(object):
 
             if not isinstance(result, BOOL_TYPES):
                 raise SchemaDefinitionError(cls.__name__,
-                    'the value valudation function for keyword %r must return '
+                    'the value validation function for keyword %r must return '
                     'a boolean value; instead it returned %r' %
                     (keyword, result))
 
