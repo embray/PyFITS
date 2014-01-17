@@ -258,8 +258,7 @@ class ExtensionSchema(BaseSchema, ChecksumSchema):
     }
 
     # Section 4.4.2.1
-    # TODO:
-    # EXTEND = {'valid': False}
+    EXTEND = {'valid': False}
 
 
 class StandardExtensionSchema(ExtensionSchema):
