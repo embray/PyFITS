@@ -16,7 +16,7 @@ from ..fitsrec import FITS_rec
 from ..header import Header
 from ..util import (lazyproperty, _is_pseudo_unsigned, _unsigned_zero,
                     deprecated, _is_int, PyfitsPendingDeprecationWarning)
-from .base import DELAYED, ExtensionHDU
+from .base import DELAYED, ExtensionHDU, ChecksumSchema
 from .image import _ImageBaseHDU, ImageHDU
 from .table import BinTableHDU, BinTableExtensionSchema
 
@@ -104,7 +104,20 @@ class CompImageSchema(BinTableExtensionSchema):
         'value': (int, lambda v, k, h: v >= 1)
         # TODO: 'default': lambda k, h, n: h['ZNAXIS1'] if n == 1 else 1
     }
-    # TODO: ZNAMEn and ZVALn will require special handling
+    ZNAMEn = {
+        'indices': {'n': lambda k, h: range(1, len(h['ZNAME?*']) + 1)},
+        'value': (str, lambda v, k, h: \
+                  CompImageSchema.validate_zname_value(v, h, h)),
+        'valid': lambda k, h, n: \
+                  CompImageSchema.validate_zname_validity(k, h, n)
+    }
+    ZVALn = {
+        'indices': {'n': lambda k, h: range(1, len(h['ZNAME?*']) + 1)},
+        'value': (int, lambda v, k, h, n: \
+                  CompImageSchema.validate_zval_value(v, k, h, n)),
+        'valid': lambda k, h, n: \
+                  CompImageSchema.validate_zval_validity(k, h, n)
+    }
     ZMASKCMP = {'value': lambda v, k, h: v in COMPRESSION_TYPES}
     ZSIMPLE = {
         'value': True,
@@ -130,9 +143,8 @@ class CompImageSchema(BinTableExtensionSchema):
         'value': (int, 1),
         'valid': lambda k, h: 'ZTENSION' in h
     }
-    # TODO: ZHECKSUM
-    # TODO: ZDATASUM  # Need to implement checksum keyword validation for
-                      # normal HDUs as well
+    ZHECKSUM = ChecksumSchema.CHECKSUM
+    ZDATASUM = ChecksumSchema.DATASUM
     ZQUANTIZ = {'value': lambda v, k, h: v in QUANTIZE_METHOD_NAMES.values()}
     ZDITHER0 = {'value': (int, lambda v, k, h: 1 <= v <= 10000)}
 
@@ -147,6 +159,46 @@ class CompImageSchema(BinTableExtensionSchema):
     BLANK = {'valid': lambda k, h: h['BITPIX'] > 0}
     DATAMAX = {'valid': True}
     DATAMIN = {'valid': True}
+
+    # These are compression types that support optional ZNAMEn+ZVALn parameters
+    _ZVAL_CMPTYPES = ['RICE_1', 'RICE_ONE', 'HCOMPRESS_1']
+
+    @classmethod
+    def validate_zname_validity(cls, k, h, n):
+        return ('ZVAL%d' % n) in h and h['ZCMPTYPE'] in cls._ZVAL_CMPTYPES
+
+    @classmethod
+    def validate_zval_validity(cls, k, h, n):
+        return ('ZNAME%d' % n) in h and h['ZCMPTYPE'] in cls._ZVAL_CMPTYPES
+
+    @staticmethod
+    def validate_zname_value(v, k, h):
+        cmptype = h['ZCMPTYPE']
+        if cmptype in ('RICE_1', 'RICE_ONE'):
+            return v in ('BLOCKSIZE', 'BYTEPIX')
+        elif cmptype == 'HCOMPRESS_1':
+            return v in ('SCALE', 'SMOOTH')
+        else:
+            return False
+
+    @staticmethod
+    def validate_zval_value(v, k, h, n):
+        # All currently supported ZVALn values are required to be ints, though
+        # that isn't guaranteed not to change
+        cmptype = h['ZCMPTYPE']
+        zname = h['ZNAME%d' % n]
+        if cmptype in ('RICE_1', 'RICE_ONE'):
+            if zname == 'BLOCKSIZE':
+                return v in (16, 32)
+            elif zname == 'BYTEPIX':
+                return v in (1, 2, 4, 8)
+        elif cmptype == 'HCOMPRESS_1':
+            if zname == 'SCALE':
+                return v >= 0
+            elif zname == 'SMOOTH':
+                return v in (0, 1)
+
+        return False
 
 
 class CompImageHeader(Header):
