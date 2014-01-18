@@ -749,11 +749,7 @@ class FITS_rec(np.recarray):
         elif _bool and field.dtype != bool:
             field = np.equal(field, ord('T'))
         elif _str:
-            try:
-                field = decode_ascii(field)
-            except UnicodeDecodeError:
-                pass
-
+            field = field.view(encoded_text_array.with_encoding('ascii'))
         if dim:
             # Apply the new field item dimensions
             nitems = reduce(operator.mul, dim)
@@ -996,7 +992,7 @@ class FITS_rec(np.recarray):
         self._heapsize = heapsize
 
 
-class encoded_text_array(np.ndarray):
+class encoded_text_array(chararray.chararray):
     _subtype_cache = {}
 
     def __new__(cls, shape, itemsize=1, encoding=None, buffer=None,
@@ -1016,15 +1012,16 @@ class encoded_text_array(np.ndarray):
 
     @classmethod
     def with_encoding(cls, encoding):
-        subtype = cls._subtype_cache.get(encoding.lower())
+        # TODO: Handle encoding aliases
+        normalized_encoding = encoding.lower().replace('-', '_')
+        subtype = cls._subtype_cache.get(normalized_encoding)
 
         if subtype is not None:
             return subtype
 
-        normalized_encoding = encoding.lower().replace('-', '_')
         subtype = type('{0}_encoded_text_array'.format(normalized_encoding),
-                       (cls,), {'encoding': encoding})
-        cls._subtype_cache[encoding.lower()] = subtype
+                       (cls,), {'encoding': normalized_encoding})
+        cls._subtype_cache[normalized_encoding] = subtype
         return subtype
 
     def __repr__(self):
@@ -1034,8 +1031,15 @@ class encoded_text_array(np.ndarray):
 
     def __getitem__(self, key):
         value = super(encoded_text_array, self).__getitem__(key)
-        if not value.shape:
-            return value.decode(self.encoding).rstrip()
+        if isinstance(value, (str, bytes)) or not value.shape:
+            # This is a PyFITS-specific hack, to actually do nothing on Python
+            # 2 if the strings are ASCII, so that users still get str objects
+            # rather than unicode objects like they're accustomed to
+            if self.encoding == 'ascii':
+                value = decode_ascii(value)
+            else:
+                value = value.decode(self.encoding)
+            return value.rstrip()
         else:
             return value
 

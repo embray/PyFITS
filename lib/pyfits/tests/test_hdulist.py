@@ -629,7 +629,7 @@ class TestHDUListFunctions(PyfitsTestCase):
                         assert (hdul[idx].data == hdul2[idx].data).all()
 
         for filename in glob.glob(os.path.join(self.data_dir, '*.fits')):
-            if sys.platform == 'win32' and filename == 'zerowidth.fits':
+            if sys.platform == 'win32' and filename.endswith('zerowidth.fits'):
                 # Running this test on this file causes a crash in some
                 # versions of Numpy on Windows.  See PyFITS ticket
                 # https://trac.assembla.com/pyfits/ticket/174
