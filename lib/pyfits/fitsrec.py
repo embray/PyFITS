@@ -1035,7 +1035,7 @@ class encoded_text_array(np.ndarray):
     def __getitem__(self, key):
         value = super(encoded_text_array, self).__getitem__(key)
         if not value.shape:
-            return value.decode(self.encoding)
+            return value.decode(self.encoding).rstrip()
         else:
             return value
 
