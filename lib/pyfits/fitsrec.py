@@ -740,8 +740,8 @@ class FITS_rec(np.recarray):
                         test_overflow += bzero64
                     except OverflowError:
                         warnings.warn(
-                            "Overflow detected while applying TZERO{0:d}. "
-                            "Returning unscaled data.".format(indx + 1))
+                            "Overflow detected while applying TZERO%d. "
+                            "Returning unscaled data." % (indx + 1))
                     else:
                         field = test_overflow
                 else:
@@ -1012,22 +1012,21 @@ class encoded_text_array(chararray.chararray):
 
     @classmethod
     def with_encoding(cls, encoding):
-        # TODO: Handle encoding aliases
-        normalized_encoding = encoding.lower().replace('-', '_')
-        subtype = cls._subtype_cache.get(normalized_encoding)
+        encoding = normalize_encoding(encoding)
+        subtype = cls._subtype_cache.get(encoding)
 
         if subtype is not None:
             return subtype
 
-        subtype = type('{0}_encoded_text_array'.format(normalized_encoding),
-                       (cls,), {'encoding': normalized_encoding})
-        cls._subtype_cache[normalized_encoding] = subtype
+        subtype = type('%s_encoded_text_array' % encoding,
+                       (cls,), {'encoding': encoding})
+        cls._subtype_cache[encoding] = subtype
         return subtype
 
     def __repr__(self):
         prefix = 'array('
         body = np.array2string(self, prefix=prefix, separator=', ')
-        return '{0}{1})'.format(prefix, body)
+        return '%s%s)' % (prefix, body)
 
     def __getitem__(self, key):
         value = super(encoded_text_array, self).__getitem__(key)
@@ -1057,3 +1056,9 @@ class encoded_text_array(chararray.chararray):
             value = np.char.encode(np.asarray(value, dtype='U'),
                                    encoding=self.encoding)
         super(encoded_text_array, self).__setitem__(key, value)
+
+
+# TODO: There might be some way to do this in the stdlib
+# TODO: Handle encoding aliases
+def normalize_encoding(encoding):
+    return encoding.lower().replace('-', '_')
