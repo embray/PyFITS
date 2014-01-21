@@ -114,7 +114,7 @@ if sys.version_info[0] >= 3:  # pragma: py3
                 else:
                     val = temp
             return val
-    for m in [numpy.char, numpy.core.defchararray, numpy.core.records]:
+    for m in [numpy, numpy.char, numpy.core.defchararray, numpy.core.records]:
         m.chararray = chararray
 
     # Fix recarrays with sub-array fields.  See

@@ -378,7 +378,7 @@ class FITS_rec(np.recarray):
                     # strings, but we need to view it as a normal ndarray of
                     # 8-bit ints to fill it with ASCII codes for 'T' and 'F'
                     outarr = field.view(np.uint8, np.ndarray)[:n]
-                elif not isinstance(arr, chararray.chararray):
+                elif not isinstance(arr, np.chararray):
                     # Fill with the appropriate blanks for the column format
                     data._convert[idx] = np.zeros(nrows, dtype=arr.dtype)
                     outarr = data._convert[idx][:n]
@@ -992,7 +992,7 @@ class FITS_rec(np.recarray):
         self._heapsize = heapsize
 
 
-class encoded_text_array(chararray.chararray):
+class encoded_text_array(np.chararray):
     _subtype_cache = {}
 
     def __new__(cls, shape, itemsize=1, encoding=None, buffer=None,
