@@ -60,9 +60,9 @@ def comparerecords(a, b):
         fielda = a.field(i)
         fieldb = b.field(i)
         if fielda.dtype.char == 'S':
-            fielda = decode_ascii(fielda)
+            fielda = np.char.rstrip(decode_ascii(fielda).view(np.ndarray))
         if fieldb.dtype.char == 'S':
-            fieldb = decode_ascii(fieldb)
+            fieldb = np.char.rstrip(decode_ascii(fieldb).view(np.ndarray))
         if (type(fielda) != type(fieldb) and not
             (issubclass(type(fielda), type(fieldb)) or
              issubclass(type(fieldb), type(fielda)))):

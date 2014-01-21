@@ -5,8 +5,6 @@ import weakref
 
 import numpy as np
 
-from numpy import char as chararray
-
 from pyfits.column import (ASCIITNULL, FITS2NUMPY, ASCII2NUMPY, ASCII2STR,
                            ColDefs, _AsciiColDefs, _FormatX, _FormatP, _VLF,
                            _get_index, _wrapx, _unwrapx, _makep,
@@ -953,18 +951,24 @@ class FITS_rec(np.recarray):
                     if len(field) and isinstance(field[0], np.integer):
                         dummy = np.around(dummy)
                     elif isinstance(field, np.chararray):
-                        # Ensure that blanks at the end of each string are
-                        # converted to nulls instead of spaces, see Trac #15
-                        # and #111
+                        # Ensure that blanks at the end of each string use the
+                        # correct 'empty' byte for the table type.  For binary
+                        # tables this is 0; for ASCII tables it should be
+                        # spaces ' '
+                        # see Trac #15 and #111
                         itemsize = dummy.itemsize
                         if dummy.dtype.kind == 'U':
                             pad = self._coldefs._padding_byte
                         else:
                             pad = self._coldefs._padding_byte.encode('ascii')
 
-                        for idx in xrange(len(dummy)):
-                            val = dummy[idx]
-                            dummy[idx] = val + (pad * (itemsize - len(val)))
+                        dummy = np.char.rstrip(dummy)
+                        if ord(pad) != 0:
+                            # If the strings should not be padded with the null
+                            # byte, ensure that they *are* given the correct
+                            # padding (currently the only case is spaces for
+                            # ASCII tables
+                            dummy = np.char.ljust(dummy, itemsize, pad)
 
                         # Encode *after* handling the padding byte or else
                         # Numpy will complain about trying to append bytes to
@@ -1056,6 +1060,57 @@ class encoded_text_array(np.chararray):
             value = np.char.encode(np.asarray(value, dtype='U'),
                                    encoding=self.encoding)
         super(encoded_text_array, self).__setitem__(key, value)
+
+    def __eq__(self, other):
+        return self._comparison(other, '==')
+
+    def __ne__(self, other):
+        return self._comparison(other, '!=')
+
+    def __ge__(self, other):
+        return self._comparison(other, '>=')
+
+    def __le__(self, other):
+        return self._comparison(other, '<=')
+
+    def __gt__(self, other):
+        return self._comparison(other, '>')
+
+    def __lt__(self, other):
+        return self._comparison(other, '<')
+
+    def encode(self, encoding=None, errors=None):
+        if encoding is not None:
+            encoding = normalize_encoding(encoding)
+            if encoding == self.encoding:
+                return self.copy()
+        return np.char.encode(np.char.decode(self, self.encoding),
+                              encoding=encoding, errors=errors)
+
+    def _comparison(self, other, oper):
+        if isinstance(other, encoded_text_array):
+            if self.encoding != other.encoding:
+                # In order to compare two string arrays in different encodings
+                # the best chance we have to compare them is to decode both to
+                # unicode and make the comparison there
+                self = np.char.decode(self, self.encoding)
+                other = np.char.decode(other, other.encoding)
+            # else if they are the same encoding we can make a direct
+            # comparison of the bytes
+        else:
+            other = np.asarray(other)
+            # Technically we shouldn't do this, but for backwards compatibility
+            # with existing code that does not obey the unicode sandwich, we
+            # allow comparisons with bytes arrays too, but they are assumed to
+            # be in the same encoding (ASCII, typically)
+            if other.dtype.char == 'U':
+                other = np.char.encode(other, self.encoding)
+
+        # np.compare_chararrays is a holdover from Numeric that supports
+        # vectorized string array comparison with support for strings with
+        # right-padding of spaces; particularly important for direct
+        # comparison with string columns from ASCII tables
+        return np.compare_chararrays(self, other, oper, rstrip=True)
 
 
 # TODO: There might be some way to do this in the stdlib
