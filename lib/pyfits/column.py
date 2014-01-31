@@ -1196,8 +1196,8 @@ class ColDefs(object):
     def _update_listener(self):
         if hasattr(self, '_listener'):
             try:
-                if self._listener._data_loaded:
-                    del self._listener.data
+                #if self._listener._data_loaded:
+                #    del self._listener.data
                 self._listener.columns = self
             except ReferenceError:
                 del self._listener
