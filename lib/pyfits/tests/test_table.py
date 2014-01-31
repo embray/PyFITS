@@ -2112,6 +2112,44 @@ class TestTableFunctions(PyfitsTestCase):
                 assert np.all(np.where(tbdata['c4'] == True, 'T', 'F') ==
                               tbdata2['c4'])
 
+    def test_del_column(self):
+        """
+        Regression test for https://github.com/spacetelescope/PyFITS/issues/44
+
+        Ensures that when a column is deleted any keywords related to that
+        column are deleted from the heder.
+        """
+
+        data = np.arange(10, dtype='int64')
+        c1 = fits.Column(name='COL1', format='J', null=9999, array=data)
+        c2 = fits.Column(name='COL2', format='J', array=data)
+        t = fits.BinTableHDU.from_columns([c1, c2])
+        t.writeto(self.temp('test.fits'))
+
+        with fits.open(self.temp('test.fits')) as h:
+            hdr = h[1].header
+            assert hdr['TTYPE1'] == 'COL1'
+            assert hdr['TFORM1'] == 'J'
+            assert hdr['TNULL1'] == 9999
+            assert hdr['TTYPE2'] == 'COL2'
+            assert hdr['TFORM2'] == 'J'
+            assert len(hdr['T*2']) == 2
+
+            h[1].columns.del_col('COL1')
+            assert h[1].data.dtype.names == ('COL2',)
+            assert h[1].columns.names == ['COL2']
+
+            with ignore_warnings():
+                h.writeto(self.temp('test.fits'), clobber=True)
+
+        with fits.open(self.temp('test.fits')) as h:
+            hdr = h[1].header
+            assert hdr['TTYPE1'] == 'COL2'
+            assert hdr['TFORM1'] == 'J'
+            assert 'TNULL1' not in hdr
+            assert len(hdr['T*1']) == 2
+            assert len(hdr['T*2']) == 0
+
 
 class TestVLATables(PyfitsTestCase):
     """Tests specific to tables containing variable-length arrays."""

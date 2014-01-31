@@ -86,11 +86,11 @@ class TestCore(PyfitsTestCase):
         assert table.columns.names == ['c2', 'c4', 'foo']
 
         hdulist.writeto(self.temp('test.fits'), clobber=True)
-        with ignore_warnings():
-            # TODO: The warning raised by this test is actually indication of a
-            # bug and should *not* be ignored. But as it is a known issue we
-            # hide it for now.  See
+        with catch_warnings(record=True) as w:
+            # Ensure no warnings were raised; see
             # https://github.com/spacetelescope/PyFITS/issues/44
+            assert len(w) == 0
+
             with fits.open(self.temp('test.fits')) as hdulist:
                 table = hdulist[1]
                 assert table.data.dtype.names == ('c2', 'c4', 'foo')
