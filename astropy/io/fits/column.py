@@ -75,6 +75,7 @@ KEYWORD_NAMES = ['TTYPE', 'TFORM', 'TUNIT', 'TNULL', 'TSCAL', 'TZERO',
                  'TDISP', 'TBCOL', 'TDIM']
 KEYWORD_ATTRIBUTES = ['name', 'format', 'unit', 'null', 'bscale', 'bzero',
                       'disp', 'start', 'dim']
+"""This is a list of the attributes that can be set on `Column` objects."""
 
 # TFORMn regular expression
 TFORMAT_RE = re.compile(r'(?P<repeat>^[0-9]*)(?P<format>[LXBIJKAEDCMPQ])'
@@ -341,14 +342,13 @@ class _FormatQ(_FormatP):
 
     _format_code = 'Q'
     _format_re = re.compile(_FormatP._format_re_template % _format_code)
-    _descriptor_format = '2l4'
+    _descriptor_format = '2i8'
 
 
 class Column(object):
     """
-    Class which contains the definition of one column, e.g.  `ttype`,
-    `tform`, etc. and the array containing values for the column.
-    Does not support `theap` yet.
+    Class which contains the definition of one column, e.g.  ``ttype``,
+    ``tform``, etc. and the array containing values for the column.
     """
 
     def __init__(self, name=None, format=None, unit=None, null=None,
@@ -781,7 +781,7 @@ class ColDefs(object):
         input :
             An existing table HDU, an existing ColDefs, or recarray
 
-        **(Deprecated)** tbtype : str (optional)
+        **(Deprecated)** tbtype : str, optional
             which table HDU, ``"BinTableHDU"`` (default) or
             ``"TableHDU"`` (text table).
             Now ColDefs for a normal (binary) table by default, but converted
@@ -821,7 +821,7 @@ class ColDefs(object):
             if not isinstance(col, Column):
                 raise TypeError(
                        'Element %d in the ColDefs input is not a Column.'
-                       % input.index(col))
+                       % columns.index(col))
 
         self._init_from_coldefs(columns)
 
@@ -957,13 +957,14 @@ class ColDefs(object):
 
         cname = name[:-1]
         if cname in KEYWORD_ATTRIBUTES and name[-1] == 's':
-            attr = [''] * len(self)
-            for idx in range(len(self)):
-                val = getattr(self[idx], cname)
+            attr = []
+            for col in self:
+                val = getattr(col, cname)
                 if val is not None:
-                    attr[idx] = val
-            self.__dict__[name] = attr
-            return self.__dict__[name]
+                    attr.append(val)
+                else:
+                    attr.append('')
+            return attr
         raise AttributeError(name)
 
     @lazyproperty
@@ -1105,8 +1106,10 @@ class ColDefs(object):
 
     def change_attrib(self, col_name, attrib, new_value):
         """
-        Change an attribute (in the commonName list) of a `Column`.
+        Change an attribute (in the ``KEYWORD_ATTRIBUTES`` list) of a `Column`.
 
+        Parameters
+        ----------
         col_name : str or int
             The column name or index to change
 
@@ -1128,6 +1131,8 @@ class ColDefs(object):
         """
         Change a `Column`'s name.
 
+        Parameters
+        ----------
         col_name : str
             The current name of the column
 
@@ -1148,6 +1153,8 @@ class ColDefs(object):
         """
         Change a `Column`'s unit.
 
+        Parameters
+        ----------
         col_name : str or int
             The column name or index
 
@@ -1169,14 +1176,14 @@ class ColDefs(object):
         ----------
         attrib : str
             Can be one or more of the attributes listed in
-            `KEYWORD_ATTRIBUTES`.  The default is ``"all"`` which will print
-            out all attributes.  It forgives plurals and blanks.  If
-            there are two or more attribute names, they must be
+            ``pyfits.column.KEYWORD_ATTRIBUTES``.  The default is ``"all"``
+            which will print out all attributes.  It forgives plurals and
+            blanks.  If there are two or more attribute names, they must be
             separated by comma(s).
 
         output : file, optional
             File-like object to output to.  Outputs to stdout by default.
-            If False, returns the attributes as a dict instead.
+            If `False`, returns the attributes as a `dict` instead.
 
         Notes
         -----
@@ -1226,7 +1233,9 @@ class _AsciiColDefs(ColDefs):
         if not isinstance(input, _AsciiColDefs):
             self._update_field_metrics()
         else:
-            self.starts[:] = input.starts
+            for idx, s in enumerate(input.starts):
+                self.columns[idx].start = s
+
             self._spans = input.spans
             self._width = input._width
 
@@ -1274,7 +1283,6 @@ class _AsciiColDefs(ColDefs):
         field, and the total width of each record in the table.
         """
 
-        starts = self.starts
         spans = [0] * len(self.columns)
         end_col = 0  # Refers to the ASCII text column, not the table col
         for idx, col in enumerate(self.columns):
@@ -1283,9 +1291,9 @@ class _AsciiColDefs(ColDefs):
             # Update the start columns and column span widths taking into
             # account the case that the starting column of a field may not
             # be the column immediately after the previous field
-            if not starts[idx]:
-                starts[idx] = end_col + 1
-            end_col = starts[idx] + width - 1
+            if not col.start:
+                col.start = end_col + 1
+            end_col = col.start + width - 1
             spans[idx] = width
 
         self._spans = spans

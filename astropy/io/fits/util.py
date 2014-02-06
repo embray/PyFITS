@@ -20,6 +20,11 @@ except ImportError:
     from __builtin__ import reduce
 
 try:
+    import io
+except ImportError:
+    io = None
+
+try:
     try:
         from cStringIO import StringIO
     except ImportError:
@@ -61,7 +66,7 @@ def itersubclasses(cls, _seen=None):
     C
     >>> # get ALL (new-style) classes currently defined
     >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
-    ['type', ...'tuple', ...]
+    [...'tuple', ...'type', ...]
 
     From http://code.activestate.com/recipes/576949/
     """
@@ -75,7 +80,7 @@ def itersubclasses(cls, _seen=None):
         subs = cls.__subclasses__()
     except TypeError:  # fails only when cls is type
         subs = cls.__subclasses__(cls)
-    for sub in subs:
+    for sub in sorted(subs, key=lambda s: s.__name__):
         if sub not in _seen:
             _seen.add(sub)
             yield sub
@@ -671,8 +676,9 @@ def fileobj_is_binary(f):
     if hasattr(f, 'binary'):
         return f.binary
 
-    # TODO: In Python 3 it might be more reliable to check if the fileobj is a
-    # text reader or a binary reader
+    if io is not None and isinstance(f, io.TextIOBase):
+        return False
+
     mode = fileobj_mode(f)
     if mode:
         return 'b' in mode

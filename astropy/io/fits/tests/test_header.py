@@ -1,7 +1,9 @@
+# -*- coding: utf8 -*-
 from __future__ import division  # confidence high
 from __future__ import with_statement
 
 import itertools
+import sys
 import warnings
 
 import numpy as np
@@ -9,11 +11,14 @@ import numpy as np
 import pyfits as fits
 
 from pyfits.card import _pad
-from pyfits.util import encode_ascii
+from pyfits.util import encode_ascii, _pad_length, BLOCK_SIZE, StringIO
 from pyfits.tests import PyfitsTestCase
 from pyfits.tests.util import catch_warnings, ignore_warnings, CaptureStdio
 
 from nose.tools import assert_raises
+
+
+PY3 = sys.version_info[0] >= 3
 
 
 class TestOldApiHeaderFunctions(PyfitsTestCase):
@@ -1250,6 +1255,43 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert header[1] == 'H'
         assert header[-1] == ''
 
+    def test_header_insert_before_keyword(self):
+        """
+        Test that a keyword name or tuple can be used to insert new keywords.
+
+        Also tests the ``after`` keyword argument.
+
+        Regression test for https://github.com/spacetelescope/PyFITS/issues/12
+        """
+
+        header = fits.Header([
+            ('NAXIS1', 10), ('COMMENT', 'Comment 1'),
+            ('COMMENT', 'Comment 3')])
+
+        header.insert('NAXIS1', ('NAXIS', 2, 'Number of axes'))
+        assert list(header.keys())[0] == 'NAXIS'
+        assert header[0] == 2
+        assert header.comments[0] == 'Number of axes'
+
+        header.insert('NAXIS1', ('NAXIS2', 20), after=True)
+        assert list(header.keys())[1] == 'NAXIS1'
+        assert list(header.keys())[2] == 'NAXIS2'
+        assert header[2] == 20
+
+        header.insert(('COMMENT', 1), ('COMMENT', 'Comment 2'))
+        assert header['COMMENT'] == ['Comment 1', 'Comment 2', 'Comment 3']
+
+        header.insert(('COMMENT', 2), ('COMMENT', 'Comment 4'), after=True)
+        assert header['COMMENT'] == ['Comment 1', 'Comment 2', 'Comment 3',
+                                     'Comment 4']
+
+        header.insert(-1, ('TEST1', True))
+        assert list(header.keys())[-2] == 'TEST1'
+
+        header.insert(-1, ('TEST2', True), after=True)
+        assert list(header.keys())[-1] == 'TEST2'
+        assert list(header.keys())[-3] == 'TEST1'
+
     def test_header_comments(self):
         header = fits.Header([('A', 'B', 'C'), ('DEF', 'G', 'H')])
         assert repr(header.comments) == '       A  C\n     DEF  H'
@@ -1421,6 +1463,75 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert_raises(ValueError, header.append, 'END', end=True)
         assert_raises(ValueError, header.insert, len(header), 'END')
         assert_raises(ValueError, header.set, 'END')
+
+    def test_invalid_end_cards(self):
+        """
+        Regression test for https://trac.assembla.com/pyfits/ticket/217
+
+        This tests the case where the END card looks like a normal card like
+        'END = ' and other similar oddities.  As long as a card starts with END
+        and looks like it was intended to be the END card we allow it, but with
+        a warning.
+        """
+
+        horig = fits.PrimaryHDU(data=np.arange(100)).header
+
+        def invalid_header(end, pad):
+            # Build up a goofy invalid header
+            # Start from a seemingly normal header
+            s = horig.tostring(sep='', endcard=False, padding=False)
+            # append the bogus end card
+            s += end
+            # add additional padding if requested
+            if pad:
+                s += ' ' * _pad_length(len(s))
+
+            return StringIO(s)
+
+        # Basic case motivated by the original issue; it's as if the END card
+        # was appened by software that doesn't know to treat it specially, and
+        # it is given an = after it
+        s = invalid_header('END =', True)
+
+        with catch_warnings(record=True) as w:
+            h = fits.Header.fromfile(s)
+            assert h == horig
+            assert len(w) == 1
+            assert str(w[0].message).startswith(
+                "Unexpected bytes trailing END keyword: ' ='")
+
+        # A case similar to the last but with more spaces between END and the
+        # =, as though the '= ' value indicator were placed like that of a
+        # normal card
+        s = invalid_header('END     = ', True)
+        with catch_warnings(record=True) as w:
+            h = fits.Header.fromfile(s)
+            assert h == horig
+            assert len(w) == 1
+            assert str(w[0].message).startswith(
+                "Unexpected bytes trailing END keyword: '     ='")
+
+        # END card with trailing gibberish
+        s = invalid_header('END$%&%^*%*', True)
+        with catch_warnings(record=True) as w:
+            h = fits.Header.fromfile(s)
+            assert h == horig
+            assert len(w) == 1
+            assert str(w[0].message).startswith(
+                "Unexpected bytes trailing END keyword: '$%&%^*%*'")
+
+        # 'END' at the very end of a truncated file without padding; the way
+        # the block reader works currently this can only happen if the 'END'
+        # is at the very end of the file.
+        s = invalid_header('END', False)
+        with catch_warnings(record=True) as w:
+            # Don't raise an exception on missing padding, but still produce a
+            # warning that the END card is incomplete
+            h = fits.Header.fromfile(s, padding=False)
+            assert h == horig
+            assert len(w) == 1
+            assert str(w[0].message).startswith(
+                "Missing padding to end of the FITS block")
 
     def test_unnecessary_move(self):
         """
@@ -1733,6 +1844,28 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert_raises(ValueError, assign, 'FOO', (erikku, 'BAZ'))
         assert_raises(ValueError, assign, 'FOO', (erikku, erikku))
 
+    def test_assign_non_ascii(self):
+        """
+        First regression test for
+        https://github.com/spacetelescope/PyFITS/issues/37
+
+        Although test_assign_unicode ensures that Python 2 `unicode` objects
+        and Python 3 `str` objects containing non-ASCII characters cannot be
+        assigned to headers, there is a bug that allows Python 2 `str` objects
+        of arbitrary encoding containing non-ASCII characters to be passed
+        through.
+
+        On Python 3 it should not be possible to assign bytes to a header at
+        all.
+        """
+
+        h = fits.Header()
+        if PY3:
+            assert_raises(ValueError, h.set, 'TEST',
+                          bytes('Hello', encoding='ascii'))
+        else:
+            assert_raises(ValueError, h.set, 'TEST', str('ñ'))
+
     def test_header_strip_whitespace(self):
         """
         Regression test for https://trac.assembla.com/pyfits/ticket/146, and
@@ -1863,10 +1996,120 @@ class TestHeaderFunctions(PyfitsTestCase):
         """
 
         h = fits.Header()
-        assert_raises(ValueError, h.set, 'TEST', float('nan'))
+
+        # There is an obscure cross-platform issue that prevents things like
+        # float('nan') on Windows on older versions of Python; hence it is
+        # unlikely to come up in practice
+        if not (sys.platform.startswith('win32') and
+                sys.version_info[:2] < (2, 6)):
+           assert_raises(ValueError, h.set, 'TEST', float('nan'))
+           assert_raises(ValueError, h.set, 'TEST', float('inf'))
+
         assert_raises(ValueError, h.set, 'TEST', np.nan)
-        assert_raises(ValueError, h.set, 'TEST', float('inf'))
         assert_raises(ValueError, h.set, 'TEST', np.inf)
+
+    def test_update_bool(self):
+        """
+        Regression test for an issue where a value of True in a header
+        cannot be updated to a value of 1, and likewise for False/0.
+        """
+
+        h = fits.Header([('TEST', True)])
+        h['TEST'] = 1
+        assert h['TEST'] is not True
+        assert isinstance(h['TEST'], int)
+        assert h['TEST'] == 1
+
+        h['TEST'] = np.bool_(True)
+        assert h['TEST'] is True
+
+        h['TEST'] = False
+        assert h['TEST'] is False
+        h['TEST'] = np.bool_(False)
+        assert h['TEST'] is False
+
+        h['TEST'] = 0
+        assert h['TEST'] is not False
+        assert isinstance(h['TEST'], int)
+        assert h['TEST'] == 0
+
+        h['TEST'] = np.bool_(False)
+        assert h['TEST'] is False
+
+    def test_update_numeric(self):
+        """
+        Regression test for https://github.com/spacetelescope/PyFITS/issues/49
+
+        Ensure that numeric values can be upcast/downcast between int, float,
+        and complex by assigning values that compare equal to the existing
+        value but are a different type.
+        """
+
+        h = fits.Header()
+        h['TEST'] = 1
+
+        # int -> float
+        h['TEST'] = 1.0
+        assert isinstance(h['TEST'], float)
+        assert str(h).startswith('TEST    =                  1.0')
+
+        # float -> int
+        h['TEST'] = 1
+        assert isinstance(h['TEST'], int)
+        assert str(h).startswith('TEST    =                    1')
+
+        # int -> complex
+        h['TEST'] = 1.0+0.0j
+        assert isinstance(h['TEST'], complex)
+        assert str(h).startswith('TEST    =           (1.0, 0.0)')
+
+        # complex -> float
+        h['TEST'] = 1.0
+        assert isinstance(h['TEST'], float)
+        assert str(h).startswith('TEST    =                  1.0')
+
+        # float -> complex
+        h['TEST'] = 1.0+0.0j
+        assert isinstance(h['TEST'], complex)
+        assert str(h).startswith('TEST    =           (1.0, 0.0)')
+
+        # complex -> int
+        h['TEST'] = 1
+        assert isinstance(h['TEST'], int)
+        assert str(h).startswith('TEST    =                    1')
+
+        # Now the same tests but with zeros
+        h['TEST'] = 0
+
+        # int -> float
+        h['TEST'] = 0.0
+        assert isinstance(h['TEST'], float)
+        assert str(h).startswith('TEST    =                  0.0')
+
+        # float -> int
+        h['TEST'] = 0
+        assert isinstance(h['TEST'], int)
+        assert str(h).startswith('TEST    =                    0')
+
+        # int -> complex
+        h['TEST'] = 0.0+0.0j
+        assert isinstance(h['TEST'], complex)
+        assert str(h).startswith('TEST    =           (0.0, 0.0)')
+
+        # complex -> float
+        h['TEST'] = 0.0
+        assert isinstance(h['TEST'], float)
+        assert str(h).startswith('TEST    =                  0.0')
+
+        # float -> complex
+        h['TEST'] = 0.0+0.0j
+        assert isinstance(h['TEST'], complex)
+        assert str(h).startswith('TEST    =           (0.0, 0.0)')
+
+        # complex -> int
+        h['TEST'] = 0
+        assert isinstance(h['TEST'], int)
+        assert str(h).startswith('TEST    =                    0')
 
 
 class TestRecordValuedKeywordCards(PyfitsTestCase):
