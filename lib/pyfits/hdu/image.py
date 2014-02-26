@@ -27,7 +27,7 @@ class BaseArraySchema(BaseSchema):
     BSCALE = {'valid': True}
     BZERO = {'valid': True}
     BUNIT = {'valid': True}
-    BLANK = {'valid': lambda k, h: h['BITPIX'] > 0}
+    BLANK = {'valid': lambda **ctx: ctx['header']['BITPIX'] > 0}
     DATAMAX = {'valid': True}
     DATAMIN = {'valid': True}
 

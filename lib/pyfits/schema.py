@@ -346,7 +346,7 @@ class Schema(with_metaclass(MetaSchema, object)):
             placeholders.append(ph)
 
             if callable(vals):
-                vals = vals(keyword, header)
+                vals = vals(keyword=keyword, header=header)
                 # Validate that the value returned by the callable is
                 # iterable
                 try:
@@ -387,8 +387,8 @@ class Schema(with_metaclass(MetaSchema, object)):
     @classmethod
     def _validate_mandatory(cls, header, keyword, indices, mandatory):
         if not isinstance(mandatory, BOOL_TYPES):
-            mandatory = _call_with_indices(mandatory, indices, keyword,
-                                           header)
+            mandatory = _call_with_indices(mandatory, indices, keyword=keyword,
+                                           header=header)
 
         if mandatory and keyword not in header:
             raise SchemaValidationError(cls.__name__,
@@ -397,7 +397,8 @@ class Schema(with_metaclass(MetaSchema, object)):
     @classmethod
     def _validate_valid(cls, header, keyword, indices, valid):
         if not isinstance(valid, BOOL_TYPES):
-            valid = _call_with_indices(valid, indices, keyword, header)
+            valid = _call_with_indices(valid, indices, keyword=keyword,
+                                       header=header)
 
         if not valid and keyword in header:
             raise SchemaValidationError(cls.__name__,
@@ -415,7 +416,8 @@ class Schema(with_metaclass(MetaSchema, object)):
             # Need to check this explicitly, since types are almost always also
             # callable; if not an int position *must* be callable or else the
             # schema would not have valided against the MetaSchema
-            position = _call_with_indices(position, indices, keyword, header)
+            position = _call_with_indices(position, indices, keyword=keyword,
+                                          header=header)
 
             if not ((isinstance(position, INT_TYPES) and position >= 0) or
                     isinstance(position, BOOL_TYPES)):
@@ -504,7 +506,8 @@ class Schema(with_metaclass(MetaSchema, object)):
 
             try:
                 result = _call_with_indices(value_test, indices,
-                                            value, keyword, header)
+                                            value=value, keyword=keyword,
+                                            header=header)
             except Exception:
                 exc = sys.exc_info()[1]
                 raise SchemaDefinitionError(cls.__name__,
@@ -542,7 +545,7 @@ _FITS_DATETIME_RE = re.compile('|'.join([
 
 # TODO: Perhaps use a more generalized version of this function to actually
 # return datetime objects from the Header for known date keywords...
-def validate_fits_datetime(value, keyword, header):
+def validate_fits_datetime(**ctx):
     """
     Validate date/time values in FITS headers according to the format given
     for the ``DATE`` keyword in Section 4.4.2.1 of the FITS Standard version
@@ -552,6 +555,8 @@ def validate_fits_datetime(value, keyword, header):
     directly, but are included to match the required interface for keyword
     value validation functions.
     """
+
+    value = ctx.get('value')
 
     # There are a few different time and/or date formats supported by the FITS
     # standard, including an older format only valid pre-2000.  So we have to
@@ -589,7 +594,7 @@ def validate_fits_datetime(value, keyword, header):
         return False
 
 
-def _call_with_indices(func, indices, *args):
+def _call_with_indices(func, indices, **kwargs):
     """
     Calls the given func, with given args, optionally passing in keyword
     arguments from the ``indices`` dict if it is not empty.
@@ -600,9 +605,11 @@ def _call_with_indices(func, indices, *args):
     """
 
     if indices:
+        kwargs.update(indices)
+
         try:
-            return func(*args, **indices)
+            return func(**kwargs)
         except TypeError:
             pass
 
-    return func(*args)
+    return func(**kwargs)

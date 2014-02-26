@@ -188,9 +188,10 @@ class TestSchema(PyfitsTestCase):
             'TYPE08': (bool, False, 0),
             'TYPE09': (int, 1, True),
             'TYPE10': (int, 0, False),
-            'FUNC01': (lambda v, k, h: v > 1, 2, 0),
-            'FUNC02': (lambda v, k, h: (k == 'FUNC02') == v, True, False),
-            'FUNC03': (lambda v, k, h: isinstance(h, fits.Header) == v,
+            'FUNC01': (lambda **ctx: ctx['value'] > 1, 2, 0),
+            'FUNC02': (lambda **ctx: (ctx['keyword'] == 'FUNC02') == ctx['value'],
+                       True, False),
+            'FUNC03': (lambda **ctx: isinstance(ctx['header'], fits.Header) == ctx['value'],
                        True, False)
         }
 
@@ -416,11 +417,13 @@ class TestSchema(PyfitsTestCase):
 
         class TestSchema(fits.Schema):
             NAXIS = {
-                'value': (int, lambda v, k, h: v >= 0),
+                'value': (int, lambda **ctx: ctx['value'] >= 0),
                 'mandatory': True}
             NAXISn = {
-                'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},
-                'value': (int, lambda v, k, h: v >= 0)
+                'indices': {
+                    'n': lambda **ctx: range(1, ctx['header']['NAXIS'] + 1)
+                },
+                'value': (int, lambda **ctx: ctx['value'] >= 0)
             }
 
         h1 = fits.Header([('NAXIS', 2), ('NAXIS1', 1), ('NAXIS2', 2),
@@ -474,12 +477,14 @@ class TestSchema(PyfitsTestCase):
 
         class TestSchema(fits.Schema):
             NAXIS = {
-                'value': (int, lambda v, k, h: 999 >= v >= 0),
+                'value': (int, lambda **ctx: 999 >= ctx['value'] >= 0),
                 'mandatory': True}
             NAXISn = {
-                'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},
-                'position': lambda k, h, n: n,
-                'value': (int, lambda v, k, h: v >= 0)
+                'indices': {
+                    'n': lambda **ctx: range(1, ctx['header']['NAXIS'] + 1)
+                },
+                'position': lambda **ctx: ctx['n'],
+                'value': (int, lambda **ctx: ctx['value'] >= 0)
             }
 
         h1 = fits.Header([('NAXIS', 2), ('NAXIS1', 1), ('NAXIS2', 2)])
@@ -542,7 +547,9 @@ class TestSchema(PyfitsTestCase):
             # Ensure that just 'DATE' is excluded from DATEx
             DATE = {'value': True}
             DATEx = {
-                'indices': {'x': lambda k, h: [kw[4:] for kw in h['DATE?*']]},
+                'indices': {
+                    'x': lambda **ctx: [k[4:] for k in ctx['header']['DATE?*']]
+                },
                 'value': (str, validate_fits_datetime)
             }
 

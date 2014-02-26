@@ -25,8 +25,8 @@ from ..util import lazyproperty, _is_int, _str_to_num, _pad_length, deprecated
 from .base import DELAYED, _ValidHDU, ExtensionHDU, ExtensionSchema
 
 
-def index_tfields(keyword, header):
-    return range(1, header['TFIELDS'] + 1)
+def index_tfields(**ctx):
+    return range(1, ctx['header']['TFIELDS'] + 1)
 
 
 class BaseTableSchema(ExtensionSchema):
@@ -46,7 +46,7 @@ class BaseTableSchema(ExtensionSchema):
     GCOUNT = {'value': 1}
     TFIELDS = {
         'position': 7,
-        'value': (int, lambda v, k, h: 0 <= v <= 999),
+        'value': (int, lambda **ctx: 0 <= ctx['value'] <= 999),
         'mandatory': True
     }
     TFORMn = {
@@ -88,7 +88,8 @@ class TableExtensionSchema(BaseTableSchema):
     PCOUNT = {'value': 0}
     TBCOLn = {
         'indices': {'n': index_tfields},
-        'value': (int, lambda v, k, h: 1 <= v <= h['NAXIS1']),
+        'value': (int,
+                  lambda **ctx: 1 <= ctx['value'] <= ctx['header']['NAXIS1']),
         'mandatory': True
     }
 
@@ -109,7 +110,7 @@ class BinTableExtensionSchema(BaseTableSchema):
 
     # Section 7.3.1
     XTENSION = {'value': 'BINTABLE'}
-    PCOUNT = {'value': (int, lambda v, k, h: v >= 0)}
+    PCOUNT = {'value': (int, lambda **ctx: ctx['value'] >= 0)}
     # TODO: TFORMn = {'value': valid format code for bintable}
 
     # Section 7.3.2
@@ -121,14 +122,20 @@ class BinTableExtensionSchema(BaseTableSchema):
     }
     # TODO: TDISPn = {'value': valid display code for bintable}
     THEAP = {
-        'value': (int, lambda v, k, h: v >= h['NAXIS1'] * h['NAXIS2']),
+        'value': (int, lambda **ctx: BinTableExtensionSchema.validate_theap),
         # TODO: 'default': NAXIS1 * NAXIS2
-        'valid': lambda k, h: h['PCOUNT'] != 0
+        'valid': lambda **ctx: ctx['header']['PCOUNT'] != 0
     }
     TDIMn = {
         'indices': {'n': index_tfields},
         # TODO: 'value': str matching the required format for TDIMn
     }
+
+    @staticmethod
+    def validate_theap(**ctx):
+        header = ctx.get('header')
+        value = ctx.get('value')
+        return value >= header['NAXIS1'] * header['NAXIS2']
 
 
 class FITSTableDumpDialect(csv.excel):

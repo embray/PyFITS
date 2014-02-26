@@ -9,6 +9,10 @@ from .image import _ImageBaseHDU, PrimaryHDU, BaseArraySchema
 from .table import _TableLikeHDU
 
 
+def index_ptype(**ctx):
+    return range(1, ctx['header']['PCOUNT'] + 1)
+
+
 class RandomGroupsSchema(BaseArraySchema, PrimarySchema):
     """
     Schema for headers of random groups primary HDUs as described in Section 6
@@ -19,35 +23,35 @@ class RandomGroupsSchema(BaseArraySchema, PrimarySchema):
     """
 
     # Section 6.1.1
-    NAXIS = {'value': (int, lambda v, k, h: 1 <= v <= 999)}
+    NAXIS = {'value': (int, lambda **ctx: 1 <= ctx['value'] <= 999)}
     NAXIS1 = {'value': 0}
     GROUPS = {
-        'position': lambda k, h: h['NAXIS'] + 3,
+        'position': lambda **ctx: ctx['header']['NAXIS'] + 3,
         'value': True,
         'mandatory': True
     }
     PCOUNT = {
-        'position': lambda k, h: h['NAXIS'] + 4,
-        'value': (int, lambda v, k, h: v >= 0),
+        'position': lambda **ctx: ctx['header']['NAXIS'] + 4,
+        'value': (int, lambda **ctx: ctx['value'] >= 0),
         'mandatory': True
     }
     GCOUNT = {
-        'position': lambda k, h: h['NAXIS'] + 5,
-        'value': (int, lambda v, k, h: v >= 0),
+        'position': lambda **ctx: ctx['header']['NAXIS'] + 5,
+        'value': (int, lambda **ctx: ctx['value'] >= 0),
         'mandatory': True
     }
 
     # Section 6.1.2
     PTYPEn = {
-        'indices': {'n': lambda k, h: range(1, h['PCOUNT'] + 1)},
+        'indices': {'n': index_ptype},
         'value': str
     }
     PSCALn = {
-        'indices': {'n': lambda k, h: range(1, h['PCOUNT'] + 1)},
+        'indices': {'n': index_ptype},
         'value': float
     }
     PZEROn = {
-        'indices': {'n': lambda k, h: range(1, h['PCOUNT'] + 1)},
+        'indices': {'n': index_ptype},
         'value': float
     }
 

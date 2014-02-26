@@ -83,70 +83,75 @@ class CompImageSchema(BinTableExtensionSchema):
         'mandatory': True
     }
     ZCMPTYPE = {
-        'value': lambda v, k, h: v in COMPRESSION_TYPES,
+        'value': lambda **ctx: ctx['value'] in COMPRESSION_TYPES,
         'mandatory': True
     }
     ZBITPIX = {
-        'value': (int, lambda v, k, h: v in (8, 16, 32, 64, -32, -64)),
+        'value': (int,
+                  lambda **ctx: ctx['value'] in (8, 16, 32, 64, -32, -64)),
         'mandatory': True
     }
     NAXIS = {
-        'value': (int, lambda v, k, h: 0 <= v <= 999),
+        'value': (int, lambda **ctx: 0 <= ctx['value'] <= 999),
         'mandatory': True
     }
     NAXISn = {
-        'indices': {'n': lambda k, h: range(1, h['ZNAXIS'] + 1)},
-        'value': (int, lambda v, k, h: v >= 1),
+        'indices': {'n': lambda **ctx: range(1, ctx['header']['ZNAXIS'] + 1)},
+        'value': (int, lambda **ctx: ctx['value'] >= 1),
         'mandatory': True
     }
     ZTILEn = {
-        'indices': {'n': lambda k, h: range(1, h['ZNAXIS'] + 1)},
-        'value': (int, lambda v, k, h: v >= 1)
+        'indices': {'n': lambda **ctx: range(1, ctx['header']['ZNAXIS'] + 1)},
+        'value': (int, lambda **ctx: ctx['value'] >= 1)
         # TODO: 'default': lambda k, h, n: h['ZNAXIS1'] if n == 1 else 1
     }
     ZNAMEn = {
-        'indices': {'n': lambda k, h: range(1, len(h['ZNAME?*']) + 1)},
-        'value': (str, lambda v, k, h: \
-                  CompImageSchema.validate_zname_value(v, h, h)),
-        'valid': lambda k, h, n: \
-                  CompImageSchema.validate_zname_validity(k, h, n)
+        'indices': {
+            'n': lambda **ctx: range(1, len(ctx['header']['ZNAME?*']) + 1)
+        },
+        'value': (str,
+                  lambda **ctx: CompImageSchema.validate_zname_value(**ctx)),
+        'valid': lambda **ctx: CompImageSchema.validate_zname_validity(**ctx)
     }
     ZVALn = {
-        'indices': {'n': lambda k, h: range(1, len(h['ZNAME?*']) + 1)},
-        'value': (int, lambda v, k, h, n: \
-                  CompImageSchema.validate_zval_value(v, k, h, n)),
-        'valid': lambda k, h, n: \
-                  CompImageSchema.validate_zval_validity(k, h, n)
+        'indices': {
+            'n': lambda **ctx: range(1, len(ctx['header']['ZNAME?*']) + 1)
+        },
+        'value': (int,
+                  lambda **ctx: CompImageSchema.validate_zval_value(**ctx)),
+        'valid': lambda **ctx: CompImageSchema.validate_zval_validity(**ctx)
     }
-    ZMASKCMP = {'value': lambda v, k, h: v in COMPRESSION_TYPES}
+    ZMASKCMP = {'value': lambda **ctx: ctx['value'] in COMPRESSION_TYPES}
     ZSIMPLE = {
         'value': True,
-        'valid': lambda k, h: 'ZTENSION' not in h
+        'valid': lambda **ctx: 'ZTENSION' not in ctx['header']
     }
     ZTENSION = {
         'value': 'IMAGE',
-        'valid': lambda k, h: 'ZSIMPLE' not in h
+        'valid': lambda **ctx: 'ZSIMPLE' not in ctx['header']
     }
     ZEXTEND = {
         'value': bool,
-        'valid': lambda k, h: 'ZSIMPLE' in h
+        'valid': lambda **ctx: 'ZSIMPLE' in ctx['header']
     }
     ZBLOCKED = {
         'value': True,
-        'valid': lambda k, h: 'ZSIMPLE' in h
+        'valid': lambda **ctx: 'ZSIMPLE' in ctx['header']
     }
     ZPCOUNT = {
         'value': (int, 0),
-        'valid': lambda k, h: 'ZTENSION' in h
+        'valid': lambda **ctx: 'ZTENSION' in ctx['header']
     }
     ZGCOUNT = {
         'value': (int, 1),
-        'valid': lambda k, h: 'ZTENSION' in h
+        'valid': lambda **ctx: 'ZTENSION' in ctx['header']
     }
     ZHECKSUM = ChecksumSchema.CHECKSUM
     ZDATASUM = ChecksumSchema.DATASUM
-    ZQUANTIZ = {'value': lambda v, k, h: v in QUANTIZE_METHOD_NAMES.values()}
-    ZDITHER0 = {'value': (int, lambda v, k, h: 1 <= v <= 10000)}
+    ZQUANTIZ = {
+        'value': lambda **ctx: ctx['value'] in QUANTIZE_METHOD_NAMES.values()
+    }
+    ZDITHER0 = {'value': (int, lambda **ctx: 1 <= ctx['value'] <= 10000)}
 
     # Section 4.4.2.5
     # These keywords are not normally valid in a binary table, but *are* valid
@@ -156,7 +161,7 @@ class CompImageSchema(BinTableExtensionSchema):
     BSCALE = {'valid': True}
     BZERO = {'valid': True}
     BUNIT = {'valid': True}
-    BLANK = {'valid': lambda k, h: h['BITPIX'] > 0}
+    BLANK = {'valid': lambda **ctx: ctx['header']['BITPIX'] > 0}
     DATAMAX = {'valid': True}
     DATAMIN = {'valid': True}
 
@@ -164,39 +169,50 @@ class CompImageSchema(BinTableExtensionSchema):
     _ZVAL_CMPTYPES = ['RICE_1', 'RICE_ONE', 'HCOMPRESS_1']
 
     @classmethod
-    def validate_zname_validity(cls, k, h, n):
-        return ('ZVAL%d' % n) in h and h['ZCMPTYPE'] in cls._ZVAL_CMPTYPES
+    def validate_zname_validity(cls, **ctx):
+        n = ctx.get('n')
+        header = ctx.get('header')
+        return (('ZVAL%d' % n) in header and
+                header['ZCMPTYPE'] in cls._ZVAL_CMPTYPES)
 
     @classmethod
-    def validate_zval_validity(cls, k, h, n):
-        return ('ZNAME%d' % n) in h and h['ZCMPTYPE'] in cls._ZVAL_CMPTYPES
+    def validate_zval_validity(cls, **ctx):
+        n = ctx.get('n')
+        header = ctx.get('header')
+        return (('ZNAME%d' % n) in header and
+                header['ZCMPTYPE'] in cls._ZVAL_CMPTYPES)
 
     @staticmethod
-    def validate_zname_value(v, k, h):
-        cmptype = h['ZCMPTYPE']
+    def validate_zname_value(**ctx):
+        header = ctx.get('header')
+        value = ctx.get('value')
+        cmptype = header['ZCMPTYPE']
         if cmptype in ('RICE_1', 'RICE_ONE'):
-            return v in ('BLOCKSIZE', 'BYTEPIX')
+            return value in ('BLOCKSIZE', 'BYTEPIX')
         elif cmptype == 'HCOMPRESS_1':
-            return v in ('SCALE', 'SMOOTH')
+            return value in ('SCALE', 'SMOOTH')
         else:
             return False
 
     @staticmethod
-    def validate_zval_value(v, k, h, n):
+    def validate_zval_value(**ctx):
+        header = ctx.get('header')
+        value = ctx.get('value')
+        n = ctx.get('n')
         # All currently supported ZVALn values are required to be ints, though
         # that isn't guaranteed not to change
-        cmptype = h['ZCMPTYPE']
-        zname = h['ZNAME%d' % n]
+        cmptype = header['ZCMPTYPE']
+        zname = header['ZNAME%d' % n]
         if cmptype in ('RICE_1', 'RICE_ONE'):
             if zname == 'BLOCKSIZE':
-                return v in (16, 32)
+                return value in (16, 32)
             elif zname == 'BYTEPIX':
-                return v in (1, 2, 4, 8)
+                return value in (1, 2, 4, 8)
         elif cmptype == 'HCOMPRESS_1':
             if zname == 'SCALE':
-                return v >= 0
+                return value >= 0
             elif zname == 'SMOOTH':
-                return v in (0, 1)
+                return value in (0, 1)
 
         return False
 

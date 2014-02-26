@@ -80,18 +80,19 @@ class BaseSchema(Schema):
     # Section 4.4.1.1
     BITPIX = {
         'position': 1,
-        'value': (int, lambda v, k, h: v in (8, 16, 32, 64, -32, -64)),
+        'value': (int,
+                  lambda **ctx: ctx['value'] in (8, 16, 32, 64, -32, -64)),
         'mandatory': True
     }
     NAXIS = {
         'position': 2,
-        'value': (int, lambda v, k, h: 0 <= v <= 999),
+        'value': (int, lambda **ctx: 0 <= ctx['value'] <= 999),
         'mandatory': True
     }
     NAXISn = {
-        'indices': {'n': lambda k, h: range(1, h['NAXIS'] + 1)},
-        'position': lambda k, h, n: n + 2,
-        'value': (int, lambda v, k, h: 0 <= v),
+        'indices': {'n': lambda **ctx: range(1, ctx['header']['NAXIS'] + 1)},
+        'position': lambda **ctx: ctx['n'] + 2,
+        'value': (int, lambda **ctx: ctx['value'] >= 0),
         'mandatory': True
     }
 
@@ -99,7 +100,7 @@ class BaseSchema(Schema):
     DATE = {'value': (str, validate_fits_datetime)}
     ORIGIN = {'value': str}
     BLOCKED = {
-        'position': lambda k, h: h.index(k) <= 35,
+        'position': lambda **ctx: ctx['header'].index(ctx['keyword']) <= 35,
         'value': True,
         # TODO: 'deprecated': True  # determine semantics for deprecated
                                     # keywords
@@ -111,7 +112,9 @@ class BaseSchema(Schema):
     # beginning with 'DATE' should be handled as a date(time) equivalently to
     # DATE-OBS; this encompasses DATE-OBS itself implicitly
     DATEx = {
-        'indices': {'x': lambda k, h: [kw[4:] for kw in h['DATE?*']]},
+        'indices': {
+            'x': lambda **ctx: [k[4:] for k in ctx['header']['DATE?*']]
+        },
         'value': (str, validate_fits_datetime)
     }
     TELESCOP = {'value': str}
@@ -160,7 +163,7 @@ class BaseSchema(Schema):
         # TODO: 'default': 1
     }
     EXTLEVEL = {
-        'value': (int, lambda v, k, h: v >= 1),
+        'value': (int, lambda **ctx: ctx['value'] >= 1),
         # TODO: 'default': 1
     }
 
@@ -179,8 +182,7 @@ class ChecksumSchema(Schema):
     # Note: Must wrap valid_datasum call in a lambda since ChecksumSchema isn't
     # defined yet
     DATASUM = {
-        'value': (str,
-                  lambda v, k, h: ChecksumSchema.validate_datasum(v, k, h))
+        'value': (str, lambda **ctx: ChecksumSchema.validate_datasum(**ctx))
     }
     # The CHECKSUM keyword can contain any character string that would force
     # the 32-bit 1's complement of the HDU data to be 0.  Although the
@@ -190,11 +192,13 @@ class ChecksumSchema(Schema):
     CHECKSUM = {'value': str}
 
     @staticmethod
-    def validate_datasum(value, keyword, header):
+    def validate_datasum(**ctx):
         """
         The DATASUM keyword should be a string containing an unsigned 32-bit
         integer per Section 2 of the documentation for the convention.
         """
+
+        value = ctx.get('value', '')
 
         # An empty-string is allowed for DATASUM representing an unknown or
         # undefined value
@@ -247,12 +251,12 @@ class ExtensionSchema(BaseSchema, ChecksumSchema):
         'mandatory': True
     }
     PCOUNT = {
-        'position': lambda k, h: h['NAXIS'] + 3,
+        'position': lambda **ctx: ctx['header']['NAXIS'] + 3,
         'value': int,
         'mandatory': True
     }
     GCOUNT = {
-        'position': lambda k, h: h['NAXIS'] + 4,
+        'position': lambda **ctx: ctx['header']['NAXIS'] + 4,
         'value': int,
         'mandatory': True
     }
