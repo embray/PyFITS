@@ -1,24 +1,27 @@
-import itertools
 import re
+import sys
 import warnings
 
 from datetime import datetime
 
 import numpy as np
 
-from pyfits.card import KEYWORD_LENGTH
-from pyfits.util import split_multiple, join_multiple, product
+from .extern.six import integer_types, string_types, with_metaclass
+from .extern.six.moves import zip
+
+from .card import KEYWORD_LENGTH
+from .util import split_multiple, join_multiple, product
 
 
 __all__ = ['Schema', 'validate_fits_datetime']
 
 
-INT_TYPES = (int, long, np.integer)
+INT_TYPES = integer_types + (np.integer,)
 FLOAT_TYPES = (float, np.floating)
 COMPLEX_TYPES = (complex, np.complex)
-NUMERIC_TYPES = (int, long, float, complex, np.number)
+NUMERIC_TYPES = integer_types + (float, complex, np.number)
 BOOL_TYPES = (bool, np.bool_)
-SCALAR_TYPES = (basestring,) + NUMERIC_TYPES + BOOL_TYPES
+SCALAR_TYPES = string_types + NUMERIC_TYPES + BOOL_TYPES
 
 
 class SchemaError(Exception):
@@ -295,9 +298,7 @@ class MetaSchema(type):
 # TODO: Also validate non-existence of duplicate keywords (excepting commentary
 # keywords and RVKC base keywords)
 
-class Schema(object):
-    __metaclass__ = MetaSchema
-
+class Schema(with_metaclass(MetaSchema, object)):
     @classmethod
     def validate(cls, header):
         for keyword, properties in cls.keywords.items():
@@ -362,7 +363,7 @@ class Schema(object):
         for prod in product(*values):
             full_keyword = keyword
             index_values = {}
-            for ph, val in itertools.izip(placeholders, prod):
+            for ph, val in zip(placeholders, prod):
                 full_keyword = full_keyword.replace(ph, str(val))
                 index_values[ph] = val
             keywords.append((full_keyword, index_values))
@@ -469,7 +470,7 @@ class Schema(object):
                 raise SchemaValidationError(cls.__name__,
                     'keyword %r is required to have the value %r; got '
                     '%r instead' % (keyword, value_test, value))
-        elif isinstance(value_test, (basestring,) + NUMERIC_TYPES):
+        elif isinstance(value_test, string_types + NUMERIC_TYPES):
             if isinstance(value, BOOL_TYPES) or value != value_test:
                 raise SchemaValidationError(cls.__name__,
                     'keyword %r is required to have the value %r; got '
@@ -504,11 +505,12 @@ class Schema(object):
             try:
                 result = _call_with_indices(value_test, indices,
                                             value, keyword, header)
-            except Exception, e:
+            except Exception:
+                exc = sys.exc_info()[1]
                 raise SchemaDefinitionError(cls.__name__,
                     'an exception occurred in the value validation function '
                     'for the keyword %r; the value validation function must '
-                    'not raise an exception: %r' % (keyword, e))
+                    'not raise an exception: %r' % (keyword, exc))
 
             if not isinstance(result, BOOL_TYPES):
                 raise SchemaDefinitionError(cls.__name__,
@@ -555,7 +557,7 @@ def validate_fits_datetime(value, keyword, header):
     # standard, including an older format only valid pre-2000.  So we have to
     # do a bit of fancy footwork to determine which format to use, and cannot
     # simply rely on strptime alone
-    if not isinstance(value, basestring):
+    if not isinstance(value, string_types):
         return False
 
     # TODO: Value validation functions need a way to return custom error

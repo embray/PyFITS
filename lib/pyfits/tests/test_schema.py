@@ -6,12 +6,15 @@ import os
 import numpy as np
 
 import pyfits as fits
-from pyfits.hdu.base import BaseSchema, PrimarySchema
-from pyfits.hdu.image import BaseArraySchema, PrimaryArraySchema
-from pyfits.schema import (SchemaDefinitionError, SchemaValidationError,
+
+from ..extern.six import PY2, string_types
+
+from ..hdu.base import BaseSchema, PrimarySchema
+from ..hdu.image import BaseArraySchema, PrimaryArraySchema
+from ..schema import (SchemaDefinitionError, SchemaValidationError,
                            validate_fits_datetime)
-from pyfits.tests import PyfitsTestCase
-from pyfits.tests.util import catch_warnings
+from . import PyfitsTestCase
+from .util import catch_warnings
 
 from nose.tools import assert_raises
 
@@ -176,9 +179,9 @@ class TestSchema(PyfitsTestCase):
             'BOOL03': (np.bool_(True), True, 1),
             'BOOL04': (np.bool_(False), False, 0),
             'TYPE01': (str, '', 0),
-            'TYPE02': (basestring, '', 0),
+            'TYPE02': (string_types, '', 0),
             'TYPE03': (int, np.uint32(1), 0.1),
-            'TYPE04': (long, np.uint32(1), 0.1),
+            #'TYPE04': (long, np.uint32(1), 0.1),
             'TYPE05': (complex, 1, 'abc'),
             'TYPE06': (complex, 1+1j, 'def'),
             'TYPE07': (bool, True, 1),
@@ -190,6 +193,9 @@ class TestSchema(PyfitsTestCase):
             'FUNC03': (lambda v, k, h: isinstance(h, fits.Header) == v,
                        True, False)
         }
+
+        if PY2:
+            test_values['TYPE04'] = (long, np.uint32(1), 0.1)
 
         TestSchema = type('TestSchema', (fits.Schema,),
                           dict((k, {'value': v[0]})
