@@ -147,7 +147,7 @@ so::
     type 'int' instead
 
 This first example used a header that does *not* conform to the schema.  As the
-error message reads, "FOO" was required to be a string, but we gave it an
+error message reads, ``FOO`` was required to be a string, but we gave it an
 integer value instead.  Testing against invalid headers is a good way to ensure
 that our schema is looking out for us.  We are free to correct the header and
 attempt validation a second time::
@@ -164,3 +164,141 @@ Note also that we never created an *instance* of ``MySchema``.  We just called
 ``.validate`` directly on the schema class itself.  This is the intended usage,
 and in general there is no reason to create specific instances of schema
 classes.  The class itself contains all the functionality we need.
+
+What if we want ``FOO`` to always have a *specific* value; not just be an
+arbitrary string.  This this case, rather than specifying `str` for the
+``'value'`` property we specify the exact value you want it to have::
+
+    >>> class MySchema2(Schema):
+    ...     FOO = {'value': 'on'}
+    ...
+    >>> MySchema2.validate(hdr)
+    Traceback (most recent call last):
+    ...
+    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema2:
+    keyword 'FOO' is required to have the value 'on'; got 'abc' instead
+    >>> hdr['FOO'] = 'on'
+    >>> MySchema2.validate(hdr)
+    True
+
+We can also provide a list of allowed values like so::
+
+    >>> class MySchema3(Schema):
+    ...     FOO = {'value': ['on', 'off']}
+    ...
+    >>> MySchema3.validate(hdr)
+    True
+    >>> hdr['FOO'] = 'off'
+    >>> MySchema3.validate(hdr)
+    True
+    >>> hdr['FOO'] = 'abc'
+    >>> MySchema3.validate(hdr)
+    Traceback (most recent call last):
+    ...
+    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema2:
+    keyword 'FOO' is required to have the value of one of ['on', 'off']; got
+    'abc' instead
+
+.. note::
+
+    For multiple value sets a Python `list` must be used.  A `tuple` has
+    different semantics that will be discussed later.
+
+Note also that the previous example schemas do not require a keyword called
+"FOO" to be present in the header.  They only require that *if* present it
+meets the prescribed rules.  In order to *require* a keyword to be present,
+simply use the ``'mandatory'`` property with a value of `True`::
+
+    >>> class MySchema4(Schema):
+    ...     FOO = {'value': str, 'mandatory': True}
+    ...
+        >>> hdr = Header([('ZAPHOD', 1), ('FORD', 2)])
+    >>> MySchema.validate(hdr)
+    Traceback (most recent call last):
+    ...
+    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema4:
+    mandatory keyword 'FOO' missing from header
+    >>> hdr['FOO'] = 'abc'
+    >>> MySchema.validate(hdr)
+    True
+
+For many FITS keywords it's enough to set them as mandatory or optional (the
+default).  But in some cases we also want some keywords to be present in a
+header in a *specific* order.  To give a familiar example, the first keyword of
+any conforming FITS primary header must be "SIMPLE" (and it must have a value
+of `True`).  The second keyword must always be "BITPIX" (with an integer value
+of one of -64, -32, 8, 16, 32, or 64).  We use the ``'position'`` property to
+define rules for keyword order.  The simplest use of the ``'position'``
+property is to hard-code the exact index into the header a keyword must have.
+
+Remember, Python is zero-indexed, which means the *first* keyword has an index
+of zero.  A schema encoding the rules given in the previous paragraph for
+"SIMPLE" and "BITPIX" might look like this::
+
+    >>> class PrimaryHeaderSchema(Schema):
+    ...     SIMPLE = {'value': True, 'mandatory': True, 'position': 0}
+    ...     BITPIX = {'value': [-64, -32, 8, 16, 32, 64],
+    ...               'mandatory': True,
+    ...               'position': 1
+    ...              }
+    ...
+    >>> hdr = Header([('BITPIX', 16), ('SIMPLE', True)])
+    >>> hdr
+    BITPIX  =                   16
+    SIMPLE  =                    T
+    >>> PrimaryHeaderSchema.validate(hdr)
+    Traceback (most recent call last):
+    ...
+    pyfits.schema.SchemaValidationError: SchemaValidationError in
+    PrimaryHeaderSchema: keyword 'SIMPLE' is required to have position 0 in the
+    header; instead it was found in position 1 (note: position is zero-indexed)
+
+(Note: This only reported ``SIMPLE`` as out of place.  In a future version it
+will be possible to report all schema violations with a single
+`Schema.validate` call.)
+
+Now we can fix the header and try validating again::
+
+    >>> hdr.set('SIMPLE', before='BITPIX')
+    >>> hdr
+    SIMPLE  =                    T
+    BITPIX  =                   16
+    >>> PrimaryHeaderSchema.validate(hdr)
+    True
+
+Of course this is only the tip of the iceberg of the full set rules for a FITS
+primary header.  Fortunately a schema defining all the rules already comes with
+PyFITS (see `PrimarySchema`).
+
+
+Using callable properties
+=========================
+
+We have seen how to require a specific absolute position at which a keyword
+must be placed in a header by using the ``'position'`` property.  But what if
+we don't care about the absolute position but rather the position relative to
+another keyword.  For example: The keywords ``TELESCOP`` and ``INSTRUME``
+(FITSisms for "telescope" and "instrument") as defined by the FITS standard do
+*not* have required positions.  But say, as a matter of convention, for the
+sake of consistency we want all files output by our pipeline to place the
+``INSTRUME`` keyword immediately *after* ``TELESCOP``.  Conventions like this
+are useful for users visually inspecting headers--having keywords in a
+consistent order means less visual overhead in searching a long header for
+them.
+
+*Currently* PyFITS schema does not define any keyword properties that
+explicitly define such a rule (though we could add them if it turns out to be
+a very common case).  Instead, rather than supplying an exact integer value to
+``'property'`` we can supply a *function* (or often a ``lambda`` as a shortcut)
+that computes what index ``INSTRUME`` *should* have if it is to come after
+``TELESCOP``.  To do this, the function would need access to the actual header
+being validated, and it would need to be able to look up the index of the
+``TELESCOP`` keyword.  This could be implemented something like this::
+
+    >>> class MySchema5(Schema):
+    ...     TELESCOP = {'value': str, 'mandatory': True}
+    ...     INSTRUME = {'value': str,
+    ...                 lambda **ctx: ctx['header'].index('TELESCOP') + 1
+    ...                }
+    ...
+    >>>
