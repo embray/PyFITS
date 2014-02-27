@@ -237,10 +237,11 @@ of zero.  A schema encoding the rules given in the previous paragraph for
 
     >>> class PrimaryHeaderSchema(Schema):
     ...     SIMPLE = {'value': True, 'mandatory': True, 'position': 0}
-    ...     BITPIX = {'value': [-64, -32, 8, 16, 32, 64],
-    ...               'mandatory': True,
-    ...               'position': 1
-    ...              }
+    ...     BITPIX = {
+    ...         'value': [-64, -32, 8, 16, 32, 64],
+    ...         'mandatory': True,
+    ...         'position': 1
+    ...     }
     ...
     >>> hdr = Header([('BITPIX', 16), ('SIMPLE', True)])
     >>> hdr
@@ -297,8 +298,91 @@ being validated, and it would need to be able to look up the index of the
 
     >>> class MySchema5(Schema):
     ...     TELESCOP = {'value': str, 'mandatory': True}
-    ...     INSTRUME = {'value': str,
-    ...                 lambda **ctx: ctx['header'].index('TELESCOP') + 1
-    ...                }
+    ...     INSTRUME = {
+    ...         'value': str,
+    ...         'position': lambda **ctx: ctx['header'].index('TELESCOP') + 1
+    ...     }
     ...
-    >>>
+    >>> hdr = Header([('TELESCOP', 'HST'), ('FOO', 'abc'),
+    ...               ('INSTRUME', 'ACS')])
+    >>> hdr
+    TELESCOP= 'HST     '
+    FOO     = 'abc     '
+    INSTRUME= 'ACS     '
+    >>> MySchema5.validate(hdr)
+    Traceback (most recent call last):
+    ...
+    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema5:
+    keyword 'INSTRUME' is required to have position 1 in the header; instead it
+    was found in position 2 (note: position is zero-indexed)
+    >>> hdr.set('INSTRUME', after='TELESCOP')
+    >>> hdr
+    TELESCOP= 'HST     '
+    INSTRUME= 'ACS     '
+    FOO     = 'abc     '
+    >>> MySchema5.validate(hdr)
+    True
+
+.. note::
+
+    Admittedly a more useful error message here might explicitly state that
+    ``INSTRUME`` belongs after ``TELESCOP``.  There is no good way for the
+    software to parse that meaning out of the validation function, but it
+    remains a todo item to add custom error messages to the schema.  This would
+    have the added advantage of documenting the intent of the schema.
+
+The ``'position'`` property in the previous example deserves further
+explanation.  Although a ``lambda`` was used, any callable will work.  The only
+requirement at the moment is that it take arbitrary keyword arguments using
+the ``**kwargs`` syntax, and no positional arguments.  By convention, instead
+of ``kwargs`` the name ``ctx`` is used.  This is short for "context", as in,
+the context in which this keyword is being validated.
+
+The reason this is kept very flexible is so that additional context variables
+may be added later on without requiring all existing validation functions to
+be rewritten.  They can simply ignore any new context that may be added.
+
+The most common example of context given to a callable property is the actual
+header in the process of being validated.  This is passed in as the ``header``
+keyword argument, so it can be accessed via ``ctx['header']``.  This usage is
+seen in the previous example where we use ``ctx['header']`` to look up the
+index of the ``TELESCOP`` keyword.  We then return that index incremented by
+one, giving the index at which the ``INSTRUME`` keyword *should* appear.  In
+that example ``ctx['header'].index('TELESCOP')`` returns ``0`` (it is the first
+keyword).  So this ends up being equivalent to if we had written ``'position':
+1`` for ``INSTRUME``.  The difference being that ``1`` is not
+hard-coded--instead it is dependent on the individual header being validated.
+
+Another very common usage of callable properties is validation of keyword
+values.  By writing the validation rules for values in Python they may be
+arbitrarily complex.  For example, in order to write a rule that a value
+is greater than zero we can write::
+
+    >>> class MySchema6(Schema):
+    ...     FOO = {'value': lambda **ctx: ctx['value'] > 0}
+    ...
+
+Here the actual value of the ``FOO`` keyword being validated is passed in as
+the ``value`` context variable.  If the callable returns `True` the value is
+considered valid.  But what if we also want to ensure that the value is an
+*integer* (as opposed to, say, a floating point value).  We already saw that we
+can do type checking like ``FOO = {'value': int}``.  But we can also combine
+the two checks in a `tuple`::
+
+    >>> class MySchema6(Schema):
+    ...     FOO = {
+    ...         'value': (int, lambda **ctx: ctx['value'] > 0)
+    ...     }
+    ...
+
+This will first ensure that the value is *strictly* an integer.  *Then* runs
+the callable to ensure that the value is greater than zero.  Any number of
+value tests can be conjoined as a tuple.
+
+Most keyword properties like ``'value'`` and ``'position'`` accept callables
+defining arbitrary rules.  The exact semantics of those callables, such as what
+context is provided and what return values are expected are described in the
+full documentation for individual properties.
+
+
+
