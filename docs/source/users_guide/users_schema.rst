@@ -222,6 +222,24 @@ simply use the ``'mandatory'`` property with a value of `True`::
     >>> MySchema.validate(hdr)
     True
 
+There also exists a ``'valid'`` property.  This is in some ways the inverse of
+``'mandatory'``:  By default all keywords are "valid" (``'valid': True``), but
+if a keyword is marked as ``'valid': False`` it is *invalid* for that keyword
+to appear in headers using this schema.  For example::
+
+    >>> class MySchema5(Schema):
+    ...     FOO = {'valid': False}
+    ...
+    >>> hdr = Header([('FOO', 1), ('BAR', 2)])
+    >>> MySchema5.validate(hdr)
+    Traceback (most recent call last):
+    ...
+    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema5:
+    keyword 'FOO' is invalid in this header
+    >>> del hdr['FOO']
+    >>> MySchema5.validate(hdr)
+    True
+
 For many FITS keywords it's enough to set them as mandatory or optional (the
 default).  But in some cases we also want some keywords to be present in a
 header in a *specific* order.  To give a familiar example, the first keyword of
@@ -271,6 +289,62 @@ Of course this is only the tip of the iceberg of the full set rules for a FITS
 primary header.  Fortunately a schema defining all the rules already comes with
 PyFITS (see `PrimarySchema`).
 
+Gotchas
+-------
+
+Since the PyFITS schema format actually uses Python syntax to define a schema,
+keywords listed in that schema must be valid Python identifiers.  For most
+keywords this is not a problem:  The valid characters included uppercase 'A'
+through 'Z', the digits 0-9, and the underscore.  However, it also includes
+the hyphen, '-', which is *not* a valid character in Python identifiers.  A
+common example of this is ``DATE-OBS``.  There is an alternate means of
+specifying keywords in a schema that works around this problem:  All `Schema`
+classes recognized a class attribute called simply ``keywords`` (all lowercase)
+that contains a dictionary mapping keyword names to the rules for that keyword.
+
+For example,
+
+::
+
+    >>> class ExampleSchema(Schema):
+    ...     keywords = {
+    ...         'FOO': {'mandatory': True}
+    ...     }
+    ...
+
+is equivalent to
+
+::
+
+    >>> class ExampleSchema(Schema):
+    ...     FOO = {'mandatory': True}
+    ...
+
+In most cases the latter, attribute-based, listing of keywords is simply a bit
+more convenient.  The two formats can also be used simultaneously.  This is how
+one might support ``DATE-OBS``::
+
+    >>> class ExampleSchema(Schema):
+    ...     FOO = {'mandatory': True}
+    ...     keywords = {
+    ...         'DATE-OBS': {'value': str}
+    ...     }
+    ...
+
+In this case ``keywords`` should really be read as "additional keywords".
+
+In fact, even if the ``keywords`` attribute isn't specified explicitly, *all*
+`Schema` classes automatically have a ``keywords`` attribute listing the
+keywords defined by that schema.  From the above example::
+
+    >>> ExampleSchema.keywords
+    {'DATE-OBS': {'value': True}, 'FOO': {'mandatory': True}}
+
+One can see that ``'FOO'`` was added to the ``.keywords`` `dict` along with
+``'DATE-OBS'`` (which was alreadt there).  This can be used to introspect
+the keywords defined on a given schema without having to manually look through
+all of its class attributes.
+
 
 Using callable properties
 =========================
@@ -296,7 +370,7 @@ that computes what index ``INSTRUME`` *should* have if it is to come after
 being validated, and it would need to be able to look up the index of the
 ``TELESCOP`` keyword.  This could be implemented something like this::
 
-    >>> class MySchema5(Schema):
+    >>> class MySchema6(Schema):
     ...     TELESCOP = {'value': str, 'mandatory': True}
     ...     INSTRUME = {
     ...         'value': str,
@@ -309,10 +383,10 @@ being validated, and it would need to be able to look up the index of the
     TELESCOP= 'HST     '
     FOO     = 'abc     '
     INSTRUME= 'ACS     '
-    >>> MySchema5.validate(hdr)
+    >>> MySchema6.validate(hdr)
     Traceback (most recent call last):
     ...
-    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema5:
+    pyfits.schema.SchemaValidationError: SchemaValidationError in MySchema6:
     keyword 'INSTRUME' is required to have position 1 in the header; instead it
     was found in position 2 (note: position is zero-indexed)
     >>> hdr.set('INSTRUME', after='TELESCOP')
@@ -320,7 +394,7 @@ being validated, and it would need to be able to look up the index of the
     TELESCOP= 'HST     '
     INSTRUME= 'ACS     '
     FOO     = 'abc     '
-    >>> MySchema5.validate(hdr)
+    >>> MySchema6.validate(hdr)
     True
 
 .. note::
@@ -369,7 +443,7 @@ considered valid.  But what if we also want to ensure that the value is an
 can do type checking like ``FOO = {'value': int}``.  But we can also combine
 the two checks in a `tuple`::
 
-    >>> class MySchema6(Schema):
+    >>> class MySchema7(Schema):
     ...     FOO = {
     ...         'value': (int, lambda **ctx: ctx['value'] > 0)
     ...     }
@@ -380,9 +454,192 @@ the callable to ensure that the value is greater than zero.  Any number of
 value tests can be conjoined as a tuple.
 
 Most keyword properties like ``'value'`` and ``'position'`` accept callables
-defining arbitrary rules.  The exact semantics of those callables, such as what
-context is provided and what return values are expected are described in the
-full documentation for individual properties.
+that can implement context-dependent rules for that keyword.  The exact
+semantics of those callables, such as what context is provided and what return
+values are expected are described in the full documentation for individual
+properties.
 
 
+Indexed keywords
+================
 
+One of the unique issues of designing a schema format for FITS is the common
+use of sequences of indexed keywords that share a common prefix and the same
+semantics.  Because a single FITS keyword can only store scalar values, it is
+necessary to use a scheme involving a prefix followed by a numerical (or
+in some cases even alphabetical) index in order to store the elements of
+compound values.
+
+The most common and familiar example of this by far is the ``NAXISn``
+keywords-- ``NAXIS1``, ``NAXIS2``, ..., ```NAXISn`` where ``n`` is the value
+of the ``NAXIS`` keyword and may be from 1 up to 99.  In principle this could
+be handled by manually listing out all possible ``NAXISn`` keywords in the
+schema, but this is cumbersome to write, cumbersome to read, and error-prone.
+
+In order to provide an interface for keywords like these that translates
+easily from the FITS Standard and other FITS conventions, the PyFITS schema
+interface allows defining a sort of "keyword template" where specific
+characters in the keyword are designated as placeholders that will later be
+interpolated with an index value.  How this works is easier to explain with an
+example.  One might implement a schema for the ``NAXISn`` keywords like so::
+
+    >>> class NaxisSchema(Schema):
+    ...     NAXISn = {
+    ...         'value': (int, lambda **ctx: ctx['value'] >= 0),
+    ...         'indices': {'n': range(1, 100)}
+    ...     }
+    ...
+
+Here the ``'value'`` property expresess that ``NAXISn`` keywords should have
+non-negative integer values.  More interesting here is the new ``'indices'``
+property:  This expresses which characters in the keyword should be replaced
+with index values.  In this example the character ``'n'`` should be
+replaced with the values in the range 1 through 99.  Two things should be
+pointed out about this:
+
+ 1. Keywords listed in the schema are case-sensitive:  "NAXISn" contains an
+    uppercase "N" and a lowercase "n", but only the lowercase "n" is treated
+    as the index placeholder.
+
+ 2. The range of allowed index values is given as the integers 1 through 99,
+    but keyword names are always strings.  When interpolating the possible
+    index values those values are automatically converted to strings via their
+    ``__str__`` method.  The most common case here is integers, so this just
+    automatically converts integer values to their string representations.
+
+In practice, the above example works exactly the same as a schema in which all
+99 possible ``NAXISn`` keywords were written out one by one::
+
+    >>> class NaxisSchema(Schema):
+    ...     NAXIS1 = {'value': (int, lambda **ctx: ctx['value'] >= 0)}
+    ...     NAXIS2 = {'value': (int, lambda **ctx: ctx['value'] >= 0)}
+    ...     # .. and so on up to
+    ...     NAXIS99 = {'value': (int, lambda **ctx: ctx['value'] >= 0)}
+    ...
+
+At this point, the reader might noticed that the last example is still not a
+complete schema for the ``NAXISn`` keywords in a standard FITS header.  If a
+header has, for example, ``NAXIS = 2``, then it *must* have an ``NAXIS1``
+keyword and an ``NAXIS2`` keyword and any other ``NAXISn`` keywords are in
+fact invalid.  One could use a context-based callable to define the allowed
+range of ``NAXISn`` keywords like so::
+
+    >>> class NaxisSchema(Schema):
+    ...     NAXISn = {
+    ...         'value': (int, lambda **ctx: ctx['value'] >= 0),
+    ...         'indices': {
+    ...             'n': lambda **ctx: range(1, ctx['header']['NAXIS'] + 1)
+    ...         },
+    ...         'mandatory': True
+    ...     }
+    ...
+
+In this example a *function* is used to determine the range of indices allowed
+for ``NAXISn`` based on the value of the header's ``NAXIS`` keyword.  If
+validating a header in which ``NAXIS = 2`` this will make ``NAXIS1`` and
+``NAXIS2`` mandatory and validate that they are non-negative integers.  This is
+still not as strong as it could be, in that it *allows* keywords with ``n > 2``
+such as ``NAXIS3`` and above.  But they are simply ignored--treated as
+non-meaningful to the schema.  Once could make a strong schema that outright
+disallows them::
+
+    >>> class NaxisSchema(Schema):
+    ...     NAXISn = {
+    ...         'value': (int, lambda **ctx: ctx['value'] >= 0),
+    ...         'indices': {'n': range(1, 100)}
+    ...         'mandatory': \
+    ...             lambda **ctx: ctx['header']['NAXIS'] >= ctx['n'] >= 1,
+    ...         'invalid': lambda **ctx: ctx['n'] > ctx['header']['NAXIS']
+    ...     }
+    ...
+
+This last example deserves some unpacking:  Now were are again checking all
+possible indices from 1 to 99.  If the index is between 1 and the value of
+``NAXIS`` it is mandatory.  If the index is greated than ``NAXIS`` then that
+keyword is invalid.  The index of a given keyword is passed to the
+``'mandatory'`` and ``'invalid'`` functions in the context dict as ``'n'``.
+
+For example, consider the header::
+
+    NAXIS   =                    2
+    NAXIS1  =                  100
+    NAXIS2  =                  100
+
+When evaluating this header against the above schema, all keywords ``NAXIS1``
+through ``NAXIS99`` are looped over and the functions for ``'mandatory'`` and
+``'invalid'`` are evaluated for that keyword.  For ``NAXIS1``, where ``n = 1``,
+``'mandatory'`` returns `True` and ``'invalid'`` returns `False`.  Likewise
+for ``NAXIS2``.  But for ``NAXIS3`` and above ``'mandatory'`` returns `False`
+and the ``'invalid'`` function returns `True`.  If any of those keywords appear
+in the header it will fail validation.
+
+.. note::
+
+    In the future it might be worth adding a means of marking some rules so
+    that they return warnings rather than outright invalidate the header.
+
+Multiple indices
+----------------
+
+Part of the complexity (or if you prefer "flexibility") of the ``'indices'``
+property comes from its support for keywords ontaining multiple indices.  One
+of the most common examples of this is the ``CDi_j`` keywords used to represent
+elements of the transformation matrix used in the FITS WCS convention.  Here
+there are two indices, ``i`` and ``j``.  This can be implemented in a PyFITS
+schema like::
+
+    >>> class WcsSchema(Schema):
+    ...     CDi_j = {
+    ...         'value': float,
+    ...         'indices': {
+    ...             'i': lambda **ctx: WcsSchema.wcs_range(**ctx),
+    ...             'j', lambda **ctx: range(1, ctx['header']['NAXIS'] + 1)
+    ...         }
+    ...    }
+    ...    
+    ...    @staticmethod
+    ...    def wcs_range(header=None, **ctx):
+    ...        return range(1, header.get('WCSAXES', header['NAXIS']))
+    ...
+
+In this example the allowed range ``'j'`` index (the number of pixel
+coordinates) is determined from the headers ``NAXIS`` keyword.  The allowed
+range for ``'i'`` (the number of WCS coordinates) is determined from
+``WCSAXES`` if it exists, and otherwise falls back on ``NAXIS``.  This time
+the range function for ``'i'`` was defined in a separate staticmethod rather
+than in-line for clarity's sake.  This also allows it to be reused in the
+rules for other keywords, such as ``CTYPEi``.
+
+This schema will check keywords in the ``CDi_j`` format over the Cartesian
+product of the ranges for those indices.  For example if ``NAXIS = 2`` this
+schema will check for all of ``CD1_1``, ``CD1_2``, ``CD2_1``, and ``CD2_2``.
+This is a rough implementation of the rules for this keyword; a fully-compliant
+implementation is a bit more complex.  One modification we would need to make,
+for example, is support for multiple WCS transformations.  This is an example
+where the range of values are not integers::
+
+    >>> class WcsSchema(Schema):
+    ...     # 'A'-'Z' including blank
+    ...     coordinate_versions = \
+    ...         [''] + [chr(x) for x in range(ord('A'), ord('Z') + 1)]
+    ...    
+    ...     CDi_ja = {
+    ...         'value': float,
+    ...         'indices': {
+    ...             'i': lambda **ctx: WcsSchema.wcs_range(**ctx),
+    ...             'j', lambda **ctx: range(1, ctx['header']['NAXIS'] + 1),
+    ...             'a': coordinate_versions
+    ...         }
+    ...    }
+    ...    
+    ...    @staticmethod
+    ...    def wcs_range(header=None, **ctx):
+    ...        return range(1, header.get('WCSAXES', header['NAXIS']))
+    ...
+
+This is still a rough example, but might be the basic approach in writing a
+schema for FITS WCS.  But even in the case of complex rules such as these, the
+author posits that such a schema still provides a more concise and cogent
+description of the rules for these keywords than ad-hoc code might.  Future
+enhancements to the schema format may further simplify definition of complex
+patterns of rules that appear commonly in FITS-based conventions.
