@@ -22,8 +22,8 @@ of one's data and enables arbitrary data to be checked for conformance with
 those semantics.  By using a standardized data modeling language we can then
 write software *once* that can check arbitrary data against arbitrary sets of
 constraints.  Sometimes these languages are referred to as a "schema", as in
-the case of `XML Schema <http://en.wikipedia.org/wiki/XML_schema>` or
-`JSON Schema <http://en.wikipedia.org/wiki/JSON_Schema#JSON_Schema>`.
+the case of `XML Schema <http://en.wikipedia.org/wiki/XML_schema>`_ or
+`JSON Schema <http://en.wikipedia.org/wiki/JSON_Schema#JSON_Schema>`_.
 
 One of the major shortcoming of FITS, and as a result of the data structures
 for observations built around FITS, is the lack of any kind of data modeling
@@ -108,7 +108,7 @@ PyFITS schema basics
 To define a schema using `pyfits.schema` one must create a Python *class* that
 inherits from the class called simply `~pyfits.Schema`.  For a good referesher
 on how to define a class in Python see the official `Python Tutorial
-<http://docs.python.org/2/tutorial/classes.html>`.
+<http://docs.python.org/2/tutorial/classes.html>`_.
 
 A schema class *may* have methods defined on, but the primary contents of any
 schema class are one or more class *attributes* that take their name from FITS
@@ -116,12 +116,12 @@ keywords that we expect to find in headers conforming to our schema.  In
 Python, a class attribute is just any variable (other than a method or
 function) that is defined at the class level.  The values of each of these
 so-called "keyword attributes" *must* be a Python `dict` object.  The keys of
-that `dict` represent "keyword properties"--that is--properties or rules
+that `dict` represent "keyword properties", that is, properties or rules
 defining the semantics of that keyword as it is used in that particular data
 model.
 
 To give a very basic example, one of the most common keyword properties is
-``'value'``.  This defines the rules for the value that may be associated with
+`value`_.  This defines the rules for the value that may be associated with
 that keyword.  Say we want to define a model where the keyword ``FOO``, if it
 appears in a header, *must* have a character string value.  The schema for
 such a model (which we're calling ``MySchema``) looks like this::
@@ -161,9 +161,10 @@ attempt validation a second time::
 Currently `Schema.validate` simply returns `True` if validation succeeds.
 
 Note also that we never created an *instance* of ``MySchema``.  We just called
-``.validate`` directly on the schema class itself.  This is the intended usage,
-and in general there is no reason to create specific instances of schema
-classes.  The class itself contains all the functionality we need.
+``.validate`` directly on the schema class itself.  This is an example of a
+Python `classmethod`, and is the intended usage.  In general there is no reason
+to create specific instances of schema classes.  The class itself contains all
+the functionality we need.
 
 What if we want ``FOO`` to always have a *specific* value; not just be an
 arbitrary string.  This this case, rather than specifying `str` for the
@@ -207,7 +208,7 @@ We can also provide a list of allowed values like so::
 Note also that the previous example schemas do not require a keyword called
 "FOO" to be present in the header.  They only require that *if* present it
 meets the prescribed rules.  In order to *require* a keyword to be present,
-simply use the ``'mandatory'`` property with a value of `True`::
+simply use the `mandatory`_ property with a value of `True`::
 
     >>> class MySchema4(Schema):
     ...     FOO = {'value': str, 'mandatory': True}
@@ -222,7 +223,7 @@ simply use the ``'mandatory'`` property with a value of `True`::
     >>> MySchema.validate(hdr)
     True
 
-There also exists a ``'valid'`` property.  This is in some ways the inverse of
+There also exists a `valid`_ property.  This is in some ways the inverse of
 ``'mandatory'``:  By default all keywords are "valid" (``'valid': True``), but
 if a keyword is marked as ``'valid': False`` it is *invalid* for that keyword
 to appear in headers using this schema.  For example::
@@ -245,7 +246,7 @@ default).  But in some cases we also want some keywords to be present in a
 header in a *specific* order.  To give a familiar example, the first keyword of
 any conforming FITS primary header must be "SIMPLE" (and it must have a value
 of `True`).  The second keyword must always be "BITPIX" (with an integer value
-of one of -64, -32, 8, 16, 32, or 64).  We use the ``'position'`` property to
+of one of -64, -32, 8, 16, 32, or 64).  We use the `position`_ property to
 define rules for keyword order.  The simplest use of the ``'position'``
 property is to hard-code the exact index into the header a keyword must have.
 
@@ -341,7 +342,7 @@ keywords defined by that schema.  From the above example::
     {'DATE-OBS': {'value': True}, 'FOO': {'mandatory': True}}
 
 One can see that ``'FOO'`` was added to the ``.keywords`` `dict` along with
-``'DATE-OBS'`` (which was alreadt there).  This can be used to introspect
+``'DATE-OBS'`` (which was included explicitly).  This can be used to introspect
 the keywords defined on a given schema without having to manually look through
 all of its class attributes.
 
@@ -364,7 +365,7 @@ them.
 *Currently* PyFITS schema does not define any keyword properties that
 explicitly define such a rule (though we could add them if it turns out to be
 a very common case).  Instead, rather than supplying an exact integer value to
-``'property'`` we can supply a *function* (or often a ``lambda`` as a shortcut)
+``'position'`` we can supply a *function* (or often a ``lambda`` as a shortcut)
 that computes what index ``INSTRUME`` *should* have if it is to come after
 ``TELESCOP``.  To do this, the function would need access to the actual header
 being validated, and it would need to be able to look up the index of the
@@ -406,11 +407,12 @@ being validated, and it would need to be able to look up the index of the
     have the added advantage of documenting the intent of the schema.
 
 The ``'position'`` property in the previous example deserves further
-explanation.  Although a ``lambda`` was used, any callable will work.  The only
-requirement at the moment is that it take arbitrary keyword arguments using
-the ``**kwargs`` syntax, and no positional arguments.  By convention, instead
-of ``kwargs`` the name ``ctx`` is used.  This is short for "context", as in,
-the context in which this keyword is being validated.
+explanation.  Although a ``lambda`` was used, any callable (that is, anything
+that acts *like* a function) will work.  The only requirement at the moment is
+that it take arbitrary keyword arguments using the ``**kwargs`` syntax, and no
+positional arguments.  By convention, instead of ``kwargs`` the name ``ctx`` is
+used.  This is short for "context", as in, the context in which this keyword is
+being validated.
 
 The reason this is kept very flexible is so that additional context variables
 may be added later on without requiring all existing validation functions to
@@ -456,8 +458,8 @@ value tests can be conjoined as a tuple.
 Most keyword properties like ``'value'`` and ``'position'`` accept callables
 that can implement context-dependent rules for that keyword.  The exact
 semantics of those callables, such as what context is provided and what return
-values are expected are described in the full documentation for individual
-properties.
+values are expected are described in the full documentation for `individual
+properties <#supported-keyword-properties>`_.
 
 
 Indexed keywords
@@ -471,10 +473,10 @@ in some cases even alphabetical) index in order to store the elements of
 compound values.
 
 The most common and familiar example of this by far is the ``NAXISn``
-keywords-- ``NAXIS1``, ``NAXIS2``, ..., ```NAXISn`` where ``n`` is the value
-of the ``NAXIS`` keyword and may be from 1 up to 99.  In principle this could
-be handled by manually listing out all possible ``NAXISn`` keywords in the
-schema, but this is cumbersome to write, cumbersome to read, and error-prone.
+keywords-- ``NAXIS1``, ``NAXIS2``, ..., ``NAXISn`` where ``n`` is the value of
+the ``NAXIS`` keyword and may be from 1 through 99.  In principle this could be
+handled by manually listing out all possible ``NAXISn`` keywords in the schema,
+but this is cumbersome to write, cumbersome to read, and error-prone.
 
 In order to provide an interface for keywords like these that translates
 easily from the FITS Standard and other FITS conventions, the PyFITS schema
@@ -491,7 +493,7 @@ example.  One might implement a schema for the ``NAXISn`` keywords like so::
     ...
 
 Here the ``'value'`` property expresess that ``NAXISn`` keywords should have
-non-negative integer values.  More interesting here is the new ``'indices'``
+non-negative integer values.  More interesting here is the new `indices`_
 property:  This expresses which characters in the keyword should be replaced
 with index values.  In this example the character ``'n'`` should be
 replaced with the values in the range 1 through 99.  Two things should be
@@ -582,7 +584,7 @@ Multiple indices
 ----------------
 
 Part of the complexity (or if you prefer "flexibility") of the ``'indices'``
-property comes from its support for keywords ontaining multiple indices.  One
+property comes from its support for keywords containing multiple indices.  One
 of the most common examples of this is the ``CDi_j`` keywords used to represent
 elements of the transformation matrix used in the FITS WCS convention.  Here
 there are two indices, ``i`` and ``j``.  This can be implemented in a PyFITS
@@ -618,7 +620,7 @@ implementation is a bit more complex.  One modification we would need to make,
 for example, is support for multiple WCS transformations.  This is an example
 where the range of values are not integers::
 
-    >>> class WcsSchema(Schema):
+    >>> class BaseWCSSchema(Schema):
     ...     # 'A'-'Z' including blank
     ...     coordinate_versions = \
     ...         [''] + [chr(x) for x in range(ord('A'), ord('Z') + 1)]
@@ -643,3 +645,225 @@ author posits that such a schema still provides a more concise and cogent
 description of the rules for these keywords than ad-hoc code might.  Future
 enhancements to the schema format may further simplify definition of complex
 patterns of rules that appear commonly in FITS-based conventions.
+
+
+Schema inheritance
+==================
+
+Some of the greatest power of PyFITS schemas is their extensibility.  PyFITS
+includes built-in schemas for all of the basic data types supported by the FITS
+standard--particularly image arrays.  This schema includes all the rules for
+keywords like ``NAXIS`` and ``BITPIX`` as well as standard metadata such as
+``DATE-OBS``.  When developing a schema with which to check correctness of
+describing observations made with a specific instrument one might start with
+`BaseArraySchema` which describes headers for all FITS standard array-like
+data (whether in the primary HDU or an extension).  Basic extension to PyFITS
+schemas works through Python class inheritance.  So to add rules for
+additional keywords to `BaseArraySchema` one simply subclasses it.  For
+example, a general schema for ACS headers might start out something like::
+
+    >>> class BaseACSImageSchema(pyfits.BaseArraySchema):
+    ...     TELESCOP = {'value': 'HST', 'mandatory': True}
+    ...     INSTRUME = {'value': 'ACS', 'mandatory': True}
+    ...     OBSTYPE = {
+    ...         'value': ['IMAGING', 'SPECTROSCOPIC', 'CORONAGRAPHIC'],
+    ...         'mandatory': True
+    ...     }
+    ...     DETECTOR = {'value': ['WCF', 'HRC', 'SBC'], 'mandatory': True}
+    ...
+
+These are just a small set of the keywords one would define rules for in this
+case, but they would fairly uniquely identify a given header as belonging to
+an ACS observation.  The first thing to note about this example is that the
+``TELESCOP`` and ``INSTRUME`` keywords are not unique to ACS--these are
+keywords defined by the FITS standard, and are indeed part of the basic
+`BaseArraySchema`::
+
+    >>> pyfits.BaseArraySchema.TELESCOP
+    {'value': str}
+    >>> pyfits.BaseArraySchema.INSTRUME
+    {'value': str}
+
+However, their definitions are very loose--they are entirely optional, and the
+only rule for them is that their value contains a string.  The
+``BaseACSImageSchema`` we defined above overrides these rules by adding that
+the keyword is mandatory, and restricting the exact values that the keywords
+may have.
+
+``OBSTYPE`` and ``DETECTOR`` on the other hand are not mentioned by the FITS
+standard and are entirely unique to this extension schema.
+
+An extension schema may also extend/inherit from multiple base schemas
+following Python's standard multiple-inheritance rules.  For example, the
+`PrimaryArraySchema` is composed from `BaseArraySchema` and `PrimarySchema`
+(where the latter is a schema that matches all FITS primary HDUs (i.e. where
+the first keyword is ``SIMPLE = T``).  `PrimaryArraySchema` gets most of its
+rules first from `BaseArraySchema`, but then adds some additional rules (for
+the ``SIMPLE``, ``EXTEND``, and ``BLOCKED`` keywords) from `PrimarySchema`.
+
+Another possible use case is "mixin" schemas that add support for additional
+keywords defined by a particular convention.  For example the included
+`ChecksumSchema` provides validation for the ``DATASUM`` and ``CHECKSUM``
+keywords defined by the `FITS Checksum <http://fits.gsfc.nasa.gov/registry/checksum.html>`_
+convention.  As PyFITS supports this convention it mixes this schema into
+the basic schemas for valid FITS headers, but still keeps it logically as an
+independent schema, clarifying that it is a separate convention and not
+part of the FITS standard.
+
+
+Supported keyword properties
+============================
+
+This section lists all presently supported keyword properties and their allowed
+values.  This is likely to change as the feature is used more and the set of
+required use cases becomes clearer.  In particular, it is likely to grow as
+shortcuts are added for common use cases.
+
+mandatory
+---------
+
+This property indicates that the presence of a keyword is *required* in a
+header in order for that header to be valid under the current schema.  By
+default no keywords are mandatory--this property must be explicitly set to
+`True`.
+
+Allowed values: `bool`, callable
+
+ * If given a `bool`, a value of `True` means the keyword is mandatory, and a
+   value of `False` means the keyword is not mandatory (it is optional)
+ * If given a callable, that callable *must* return a `bool` to be interpreted
+   as in the previous bullet point.  The context arguments provided to this
+   callable when validating a specific header include:
+
+   * the current header being validated
+   * the name of the keyword being validated
+   * any indices defined on the keyword being validated
+
+valid
+-----
+
+This property is in some sense the opposite of `mandatory`_--by defaut any
+keywords that appear in a header, whether they are explicitly checked by the
+schema or not, are valid.  But if a keyword is marked invalid by setting valid
+to `False` then the mere presence of that keyword in a header makes the header
+invalid under that schema.
+
+Allowed values: `bool`, callable
+
+ * If given a `bool`, a value of `False` means the keyword is *invalid*, and a
+   value of `True` (the default) means that the keyword's presence is valid.
+ * If given a callable, that callable *must* return a `bool` to be interpreted
+   as in the previous bullet point.  The context arguments provided to this
+   callable when validating a specific header include:
+
+   * the current header being validated
+   * the name of the keyword being validated
+   * any indices defined on the keyword being validated
+
+position
+--------
+
+This property defines the exact position, indicated by a zero-based numerical
+index into the list of header cards, that a keyword must be found in for the
+header to be valid.  More advanced rules can be defined by providing a callable
+that simply indicates whether or not the keyword's position is valid regardless
+of its exact position.
+
+Allowed values: `int`, callable
+
+ * If given an `int` it must be greater than or equal to zero.  This indicates
+   the exact index that the keyword must have in the list of all cards in the
+   header being validated.
+ * If given a callable, that callable *must* return either an `int` or a
+   `bool`.  If it returns and `int`, that value is to be interpreted as in the
+   previous bullet point.  If it returns a value of `True` that simply
+   indicates that the keyword's position is valid (regardless of its exact)
+   index, and a value of `False` indicates that the keyword's position is
+   invalid (and hence the header is invalid under that schema).  The context
+   arguments provided to this callable when validating a specific header
+   include:
+
+   * the current header being validated
+   * the name of the keyword being validated
+   * any indices defined on the keyword being validated
+
+value
+-----
+
+This property defines rules for the value associated with a keyword in a
+header.  It is one of the most complicated keyword properties, as it allows
+checking the type of the value (numeric, string, etc.), the exact allowed
+value(s) for that keyword, or various combinations thereof.
+
+Allowed values: `type`, `int`, `float`, `complex`, `str`, `bool`, `list`,
+`tuple`, callable
+
+ * If given a Python `type` object it must be Python built-in type
+   corresponding to the types of scalar values that can be stored in a FITS
+   header value.  These include `int`, `float`, `complex`, `str`, and `bool`.
+   That is, to require the value to be an integer, the `int` type itself is
+   given for the ``'value'`` property.
+ * If given an `int`, `float`, `complex`, `str`, or `bool`--that is, an
+   individual instance of one of those types rather than the types itself (eg.
+   the integer ``1`` or the string ``'HST'``) then the value of the keyword is
+   compared for equality with this property.  If that comparison succeeds then
+   the header is valid under that schema.  For comparison of numerical values
+   this incorporates normal casting rules, so a rule like ``{'value': 1}``
+   (where the value is must be equal to the integer ``1``) succeeds for a
+   floating-point value of ``1.0``.  It is also possible to require a value of
+   ``1`` that *must* be an strictly integer (without a decimal point anywhere
+   in the value).  See two bullet points down.
+ * If given a `list` this suggests a range of values that are valid.  For
+   example a list containing the strings ``['WCF', 'HRC', 'SBC']`` means that
+   any one of those values (and only those values) is considered valid for
+   the current keyword.  The lists need not be homogeneous so long as its
+   members are only of the types listed in the previous bullet point.
+ * If given a `tuple` this represents a conjunction of any of the above three
+   bullet points and the following one (a callable).  That is, a tuple of
+   more than one ``'value'`` properties means that all those properties must
+   be satisfied simultaneously.  A common case for this would be something like
+   ``(int, 1)`` which ensures that the value is equivalent to ``1`` and that
+   it must be an integer (and not a floating point or complex value).
+ * If given a callable that callable *must* return a `bool` indicating whether
+   or not the value is valid.  If `False` the value, and hence the header being
+   validated under that schema are invalid.  This allows for completely
+   arbitrary validation rules.  The context
+   arguments provided to this callable when validating a specific header
+   include:
+
+   * the current header being validated
+   * the name of the keyword being validated
+   * any indices defined on the keyword being validated
+   * the actual value of the keyword in the current header being validated;
+     this would be equivalent to ``ctx['header'][ctx['keyword']]`` and is
+     provided for convenience
+
+indices
+-------
+
+This property defines the indices associated with a keyword *template* such as
+``NAXISn``, where ``n`` is replaced with an index value.  See the section on
+`Indexed keywords`_ for full details.  The ``'indices'`` property is different
+from others in that it does not determine validity of a *specific* keyword
+against the schema.  Rather, it generates a set of rules for a whole class of
+keywords determined by the keyword template and the range(s) of index values.
+
+Allowed values: `dict`
+
+ * The value of this property is a `dict` mapping a single character string
+   representing each index in the keyword template with either a `list` or
+   a callable defining the range of values that specific index may take.
+   * If given a `list` the contents of that list are the exact values that
+     index may take.  For example the list generated by `range(1, 100)` allows
+     the index character to be replaced with the values 1 through 99.  The
+     elements of the list need not be strings, but when interpolating them
+     into the keyword template they will be converted to strings by calling the
+     `str` function on them.  For integers (the most common case) this just
+     returns the normal string representation of that integer.
+   * If given a callable, that callable must return a `list` as described in
+     the previous bullet point.  The context arguments provided to this
+     callable when validating a specific header include:
+
+     * the current header being validated
+     * the name of the keyword template that indices for which indices are
+       being generated
