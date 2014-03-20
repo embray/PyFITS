@@ -41,6 +41,7 @@ from . import card
 from . import column
 from . import convenience
 from . import diff
+from . import schema
 from . import hdu
 
 # Relative imports of * are not syntactically valid in Python 2.5
@@ -50,7 +51,7 @@ from pyfits.convenience import *
 from pyfits.diff import *
 from pyfits.fitsrec import FITS_record, FITS_rec
 from pyfits.hdu import *
-from pyfits.schema import Schema
+from pyfits.schema import *
 from pyfits.util import (PyfitsDeprecationWarning,
                          PyfitsPendingDeprecationWarning)
 
@@ -84,7 +85,7 @@ for varname, default in GLOBALS:
 
 
 __all__ = (card.__all__ + column.__all__ + convenience.__all__ + diff.__all__ +
-           hdu.__all__ +
+           hdu.__all__ + schema.__all__ +
            ['FITS_record', 'FITS_rec', 'open', 'Section', 'new_table',
             'Header', 'Schema', 'VerifyError', 'PyfitsDeprecationWarning',
             'PyfitsPendingDeprecationWarning', 'ignore_deprecation_warnings',

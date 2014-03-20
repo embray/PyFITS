@@ -39,7 +39,7 @@ class PrimaryArraySchema(BaseArraySchema, PrimarySchema):
     random groups structures.
 
     Note: Random groups structures require additional validation from the
-    `RandomGroupsSchema` in `pyfits.hdu.groups`.
+    `~pyfits.RandomGroupsSchema`.
     """
 
 

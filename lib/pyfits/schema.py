@@ -13,7 +13,8 @@ from .card import KEYWORD_LENGTH
 from .util import split_multiple, join_multiple, product
 
 
-__all__ = ['Schema', 'validate_fits_datetime']
+__all__ = ['Schema', 'validate_fits_datetime', 'SchemaDefinitionError',
+           'SchemaValidationError']
 
 
 INT_TYPES = integer_types + (np.integer,)
@@ -37,11 +38,11 @@ class SchemaError(Exception):
                                  self.message)
 
 class SchemaDefinitionError(SchemaError):
-    """Exception raised when a FITS schema definition is not valid."""
+    """Exception raised when a FITS `Schema` definition is not valid."""
 
 
 class SchemaValidationError(SchemaError):
-    """Exception raised when a Schema does not validate a FITS header."""
+    """Exception raised when a `Schema` does not validate a FITS header."""
 
 # TODO: Currently we raise an exception as soon as a violation of a schema
 # is detected; in the future we will collect all schema violations and
@@ -54,6 +55,15 @@ class SchemaValidationError(SchemaError):
 
 
 class MetaSchema(type):
+    """
+    Metaclass for all `Schema`-based classes.
+
+    This class ensures that the keyword properties defined for each keyword in
+    a schema obey the rules prescribed in the PyFITS schema documentation.  It
+    also implements the inheritance rules for keyword properties when a
+    `Schema` subclasses one or more other `Schema`.
+    """
+
     schema_attributes = set(['keywords'])
     keyword_properties = set(['mandatory', 'position', 'value', 'indices',
                               'valid'])
@@ -299,8 +309,32 @@ class MetaSchema(type):
 # keywords and RVKC base keywords)
 
 class Schema(with_metaclass(MetaSchema, object)):
+    """
+    Base class for all schemas.  This schema does not validate any keywords
+    and is for all intents and purposes a no-op schema.  New schemas should
+    be created by subclassing this class, or other schemas which have this
+    class as a base.
+
+    If a subclass of this schema contains invalid or unrecognized keyword
+    properties a `SchemaDefinitionError` is raised as soon as the class is
+    created (typically at import time if the class is hard-coded in a Python
+    module).  The only exception to this is callable properties which can only
+    be evaluated in the context of a specific `Header`.  In this case a
+    `SchemaDefinitionError` may be raised as well.
+    """
+
     @classmethod
     def validate(cls, header):
+        """
+        Validate a given `Header` against this schema.  Returns `True` if the
+        validation succeeds.  Otherwise raises a `SchemaValidationError`.
+
+        This may also raise a `SchemaDefinitionError` if a context-dependent
+        keyword property returns an invalid result for that property.  See
+        the :ref:`schemas` section in the PyFITS documentation for more details
+        on context-dependent properties.
+        """
+
         for keyword, properties in cls.keywords.items():
             indices = properties.get('indices', {})
             if indices:
@@ -551,9 +585,8 @@ def validate_fits_datetime(**ctx):
     for the ``DATE`` keyword in Section 4.4.2.1 of the FITS Standard version
     3.0 (July 10, 2008).
 
-    Note: the ``keyword`` and ``header`` arguments are not currently used
-    directly, but are included to match the required interface for keyword
-    value validation functions.
+    This function can be used in the ``'value'`` keyword property in a schema
+    to validate a string value against the FITS datetime format.
     """
 
     value = ctx.get('value')

@@ -13,5 +13,6 @@ API Documentation
    api_tables.rst
    api_images.rst
    api_diff.rst
+   api_schema.rst
    api_verification.rst
 
