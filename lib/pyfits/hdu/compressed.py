@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 
-from ..extern.six import string_types, iteritems
+from ..extern.six import string_types, itervalues, iteritems
 from ..extern.six.moves import range
 
 from ..card import Card
@@ -83,12 +83,11 @@ class CompImageSchema(BinTableExtensionSchema):
         'mandatory': True
     }
     ZCMPTYPE = {
-        'value': lambda **ctx: ctx['value'] in COMPRESSION_TYPES,
+        'value': COMPRESSION_TYPES,
         'mandatory': True
     }
     ZBITPIX = {
-        'value': (int,
-                  lambda **ctx: ctx['value'] in (8, 16, 32, 64, -32, -64)),
+        'value': (int, [8, 16, 32, 64, -32, -64]),
         'mandatory': True
     }
     NAXIS = {
@@ -121,7 +120,7 @@ class CompImageSchema(BinTableExtensionSchema):
                   lambda **ctx: CompImageSchema.validate_zval_value(**ctx)),
         'valid': lambda **ctx: CompImageSchema.validate_zval_validity(**ctx)
     }
-    ZMASKCMP = {'value': lambda **ctx: ctx['value'] in COMPRESSION_TYPES}
+    ZMASKCMP = {'value':  COMPRESSION_TYPES}
     ZSIMPLE = {
         'value': True,
         'valid': lambda **ctx: 'ZTENSION' not in ctx['header']
@@ -148,9 +147,7 @@ class CompImageSchema(BinTableExtensionSchema):
     }
     ZHECKSUM = ChecksumSchema.CHECKSUM
     ZDATASUM = ChecksumSchema.DATASUM
-    ZQUANTIZ = {
-        'value': lambda **ctx: ctx['value'] in QUANTIZE_METHOD_NAMES.values()
-    }
+    ZQUANTIZ = {'value': list(itervalues(QUANTIZE_METHOD_NAMES))}
     ZDITHER0 = {'value': (int, lambda **ctx: 1 <= ctx['value'] <= 10000)}
 
     # Section 4.4.2.5

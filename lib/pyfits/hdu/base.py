@@ -80,8 +80,7 @@ class BaseSchema(Schema):
     # Section 4.4.1.1
     BITPIX = {
         'position': 1,
-        'value': (int,
-                  lambda **ctx: ctx['value'] in (8, 16, 32, 64, -32, -64)),
+        'value': (int, [8, 16, 32, 64, -32, -64]),
         'mandatory': True
     }
     NAXIS = {

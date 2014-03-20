@@ -268,7 +268,7 @@ class MetaSchema(type):
           value is valid
         """
 
-        if isinstance(value, tuple):
+        if isinstance(value, (list, tuple)):
             for val in value:
                 mcls._meta_validate_value(clsname, keyword, val)
             return
@@ -490,6 +490,20 @@ class Schema(with_metaclass(MetaSchema, object)):
                 cls._validate_value(header, keyword, indices, test)
 
             return
+        elif isinstance(value_test, list):
+            for test in value_test:
+                try:
+                    return cls._validate_value(header, keyword, indices,
+                                               test)
+                except SchemaValidationError:
+                    # Ignore tests in the list that fail validation--just go to
+                    # the next item and try it
+                    continue
+                else:
+                    raise SchemaValidationError(cls.__name__,
+                        'keyword %r is required to have one of the values %r; '
+                        'got %r instead' %
+                        (keyword, value_test, header[keyword]))
 
         value = header[keyword]
 
