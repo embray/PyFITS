@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Verification options &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="up" title="API Documentation" href="api_docs.html" />
+    <link rel="next" title="PyFITS Developers Guide" href="../developers_guide/developers_guide.html" />
+    <link rel="prev" title="Schemas" href="api_schema.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../developers_guide/developers_guide.html" title="PyFITS Developers Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="api_schema.html" title="Schemas"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="api_docs.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Verification options</a><ul>
+<li><a class="reference internal" href="#exception">exception</a></li>
+<li><a class="reference internal" href="#ignore">ignore</a></li>
+<li><a class="reference internal" href="#fix">fix</a></li>
+<li><a class="reference internal" href="#silentfix">silentfix</a></li>
+<li><a class="reference internal" href="#warn">warn</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="api_schema.html"
+                        title="previous chapter">Schemas</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../developers_guide/developers_guide.html"
+                        title="next chapter">PyFITS Developers Guide</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/api_docs/api_verification.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="verification-options">
+<span id="verify"></span><h1>Verification options<a class="headerlink" href="#verification-options" title="Permalink to this headline">¶</a></h1>
+<p>There are 5 options for the <tt class="docutils literal"><span class="pre">output_verify</span></tt> argument of the following methods
+of <a class="reference internal" href="api_hdulists.html#pyfits.HDUList" title="pyfits.HDUList"><tt class="xref py py-class docutils literal"><span class="pre">HDUList</span></tt></a>: <a class="reference internal" href="api_hdulists.html#pyfits.HDUList.close" title="pyfits.HDUList.close"><tt class="xref py py-meth docutils literal"><span class="pre">close()</span></tt></a>, <a class="reference internal" href="api_hdulists.html#pyfits.HDUList.writeto" title="pyfits.HDUList.writeto"><tt class="xref py py-meth docutils literal"><span class="pre">writeto()</span></tt></a>, and
+<a class="reference internal" href="api_hdulists.html#pyfits.HDUList.flush" title="pyfits.HDUList.flush"><tt class="xref py py-meth docutils literal"><span class="pre">flush()</span></tt></a>, or the <tt class="xref py py-meth docutils literal"><span class="pre">writeto()</span></tt> method on any HDU
+object.  In these cases, the verification option is passed to a <tt class="xref py py-meth docutils literal"><span class="pre">verify()</span></tt>
+call within these methods.</p>
+<div class="section" id="exception">
+<h2>exception<a class="headerlink" href="#exception" title="Permalink to this headline">¶</a></h2>
+<p>This option will raise an exception if any FITS standard is violated. This is
+the default option for output (i.e. when <a class="reference internal" href="api_hdulists.html#pyfits.HDUList.writeto" title="pyfits.HDUList.writeto"><tt class="xref py py-meth docutils literal"><span class="pre">writeto()</span></tt></a>,
+<a class="reference internal" href="api_hdulists.html#pyfits.HDUList.close" title="pyfits.HDUList.close"><tt class="xref py py-meth docutils literal"><span class="pre">close()</span></tt></a>, or <a class="reference internal" href="api_hdulists.html#pyfits.HDUList.flush" title="pyfits.HDUList.flush"><tt class="xref py py-meth docutils literal"><span class="pre">flush()</span></tt></a> is called. If a user wants to
+overwrite this default on output, the other options listed below can be used.</p>
+</div>
+<div class="section" id="ignore">
+<h2>ignore<a class="headerlink" href="#ignore" title="Permalink to this headline">¶</a></h2>
+<p>This option will ignore any FITS standard violation. On output, it will write
+the HDU List content to the output FITS file, whether or not it is conforming
+to FITS standard.</p>
+<p>The <tt class="docutils literal"><span class="pre">ignore</span></tt> option is useful in these situations, for example:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>An input FITS file with non-standard is read and the user wants to copy or
+write out after some modification to an output file. The non-standard will
+be preserved in such output file.</li>
+<li>A user wants to create a non-standard FITS file on purpose, possibly for
+testing purpose.</li>
+</ol>
+</div></blockquote>
+<p>No warning message will be printed out. This is like a silent warn (see below)
+option.</p>
+</div>
+<div class="section" id="fix">
+<h2>fix<a class="headerlink" href="#fix" title="Permalink to this headline">¶</a></h2>
+<p>This option wil try to fix any FITS standard violations. It is not always
+possible to fix such violations. In general, there are two kinds of FITS
+standard violation: fixable and not fixable. For example, if a keyword has a
+floating number with an exponential notation in lower case &#8216;e&#8217; (e.g. 1.23e11)
+instead of the upper case &#8216;E&#8217; as required by the FITS standard, it&#8217;s a fixable
+violation. On the other hand, a keyword name like <tt class="docutils literal"><span class="pre">P.I.</span></tt> is not fixable,
+since it will not know what to use to replace the disallowed periods. If a
+violation is fixable, this option will print out a message noting it is fixed.
+If it is not fixable, it will throw an exception.</p>
+<p>The principle behind the fixing is do no harm. For example, it is plausible to
+&#8216;fix&#8217; a <a class="reference internal" href="api_cards.html#pyfits.Card" title="pyfits.Card"><tt class="xref py py-class docutils literal"><span class="pre">Card</span></tt></a> with a keyword name like <tt class="docutils literal"><span class="pre">P.I.</span></tt> by deleting it, but
+PyFITS will not take such action to hurt the integrity of the data.</p>
+<p>Not all fixes may be the &#8220;correct&#8221; fix, but at least PyFITS will try to make
+the fix in such a way that it will not throw off other FITS readers.</p>
+</div>
+<div class="section" id="silentfix">
+<h2>silentfix<a class="headerlink" href="#silentfix" title="Permalink to this headline">¶</a></h2>
+<p>Same as fix, but will not print out informative messages. This may be useful in
+a large script where the user does not want excessive harmless messages. If the
+violation is not fixable, it will still throw an exception.</p>
+</div>
+<div class="section" id="warn">
+<h2>warn<a class="headerlink" href="#warn" title="Permalink to this headline">¶</a></h2>
+<p>This option is the same as the ignore option but will send warning messages. It
+will not try to fix any FITS standard violations whether fixable or not.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../developers_guide/developers_guide.html" title="PyFITS Developers Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="api_schema.html" title="Schemas"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="api_docs.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

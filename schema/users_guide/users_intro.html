@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Introduction &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="up" title="PyFITS Users Guide" href="users_guide.html" />
+    <link rel="next" title="Quick Tutorial" href="users_tutorial.html" />
+    <link rel="prev" title="PyFITS Users Guide" href="users_guide.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="users_tutorial.html" title="Quick Tutorial"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="users_guide.html" title="PyFITS Users Guide"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" accesskey="U">PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Introduction</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#user-support">User Support</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="users_guide.html"
+                        title="previous chapter">PyFITS Users Guide</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="users_tutorial.html"
+                        title="next chapter">Quick Tutorial</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/users_guide/users_intro.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>The PyFITS module is a Python library providing access to FITS files. FITS
+(Flexible Image Transport System) is a portable file standard widely used in
+the astronomy community to store images and tables.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>PyFITS requires Python version 2.5 or newer. PyFITS also requires the numpy
+package. Information about numpy can be found at:</p>
+<blockquote>
+<div><a class="reference external" href="http://numpy.scipy.org/">http://numpy.scipy.org/</a></div></blockquote>
+<p>To download numpy, go to:</p>
+<blockquote>
+<div><a class="reference external" href="http://sourceforge.net/project/numpy">http://sourceforge.net/project/numpy</a></div></blockquote>
+<p>PyFITS&#8217; source code is mostly pure Python, but includes an optional C module
+which wraps CFITSIO for compression support.  The latest source distributions
+and binary installers for Windows can be downloaded from:</p>
+<blockquote>
+<div><a class="reference external" href="http://www.stsci.edu/resources/software_hardware/pyfits/Download">http://www.stsci.edu/resources/software_hardware/pyfits/Download</a></div></blockquote>
+<p>Or from the Python Package Index (PyPI) at:</p>
+<blockquote>
+<div><a class="reference external" href="https://pypi.python.org/pypi/pyfits">https://pypi.python.org/pypi/pyfits</a></div></blockquote>
+<p>PyFITS uses Python&#8217;s distutils for its installation. To install it, unpack the
+tar file and type:</p>
+<div class="highlight-python"><div class="highlight"><pre>python setup.py install
+</pre></div>
+</div>
+<p>This will install PyFITS in the system&#8217;s Python site-packages directory. If
+your system permissions do not allow this kind of installation, use of
+<a class="reference external" href="http://www.virtualenv.org">virtualenv</a> for personal installations is
+recommended.</p>
+<p>In this guide, we&#8217;ll assume that the reader has basic familiarity with Python.
+Familiarity with numpy is not required, but it will help to understand the data
+structures in PyFITS.</p>
+</div>
+<div class="section" id="user-support">
+<h2>User Support<a class="headerlink" href="#user-support" title="Permalink to this headline">¶</a></h2>
+<p>The official PyFITS web page is:</p>
+<blockquote>
+<div><a class="reference external" href="http://www.stsci.edu/resources/software_hardware/pyfits">http://www.stsci.edu/resources/software_hardware/pyfits</a></div></blockquote>
+<p>If you have any question or comment regarding PyFITS, user support is available
+through the STScI Help Desk:</p>
+<pre class="literal-block">
+* <strong>E-mail:</strong> <a class="reference external" href="mailto:help&#37;&#52;&#48;stsci&#46;edu">help<span>&#64;</span>stsci<span>&#46;</span>edu</a>
+* <strong>Phone:</strong> (410) 338-1082
+</pre>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="users_tutorial.html" title="Quick Tutorial"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="users_guide.html" title="PyFITS Users Guide"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" >PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

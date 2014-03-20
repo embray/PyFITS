@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>API Documentation &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="next" title="File Handling and Convenience Functions" href="api_files.html" />
+    <link rel="prev" title="Reference Manual" href="../users_guide/users_reference.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="api_files.html" title="File Handling and Convenience Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../users_guide/users_reference.html" title="Reference Manual"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../users_guide/users_reference.html"
+                        title="previous chapter">Reference Manual</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="api_files.html"
+                        title="next chapter">File Handling and Convenience Functions</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/api_docs/api_docs.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="api-documentation">
+<h1>API Documentation<a class="headerlink" href="#api-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_files.html">File Handling and Convenience Functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#open"><tt class="docutils literal"><span class="pre">open()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#writeto"><tt class="docutils literal"><span class="pre">writeto()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#info"><tt class="docutils literal"><span class="pre">info()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#append"><tt class="docutils literal"><span class="pre">append()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#update"><tt class="docutils literal"><span class="pre">update()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#getdata"><tt class="docutils literal"><span class="pre">getdata()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#getheader"><tt class="docutils literal"><span class="pre">getheader()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#getval"><tt class="docutils literal"><span class="pre">getval()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#setval"><tt class="docutils literal"><span class="pre">setval()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_files.html#delval"><tt class="docutils literal"><span class="pre">delval()</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_hdulists.html">HDU Lists</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_hdulists.html#hdulist"><tt class="docutils literal"><span class="pre">HDUList</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_hdus.html">Header Data Units</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_hdus.html#primaryhdu"><tt class="docutils literal"><span class="pre">PrimaryHDU</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_hdus.html#groupshdu"><tt class="docutils literal"><span class="pre">GroupsHDU</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_hdus.html#groupdata"><tt class="docutils literal"><span class="pre">GroupData</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_hdus.html#group"><tt class="docutils literal"><span class="pre">Group</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_hdus.html#streaminghdu"><tt class="docutils literal"><span class="pre">StreamingHDU</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_headers.html">Headers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_headers.html#header"><tt class="docutils literal"><span class="pre">Header</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_cards.html">Cards</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_cards.html#card"><tt class="docutils literal"><span class="pre">Card</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_cards.html#deprecated-interfaces">Deprecated Interfaces</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_tables.html">Tables</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#bintablehdu"><tt class="docutils literal"><span class="pre">BinTableHDU</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#tablehdu"><tt class="docutils literal"><span class="pre">TableHDU</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#column"><tt class="docutils literal"><span class="pre">Column</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#coldefs"><tt class="docutils literal"><span class="pre">ColDefs</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#fits-rec"><tt class="docutils literal"><span class="pre">FITS_rec</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#fits-record"><tt class="docutils literal"><span class="pre">FITS_record</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_tables.html#table-functions">Table Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api_tables.html#new-table"><tt class="docutils literal"><span class="pre">new_table()</span></tt></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_tables.html#tabledump"><tt class="docutils literal"><span class="pre">tabledump()</span></tt></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_tables.html#tableload"><tt class="docutils literal"><span class="pre">tableload()</span></tt></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_images.html">Images</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_images.html#imagehdu"><tt class="docutils literal"><span class="pre">ImageHDU</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_images.html#compimagehdu"><tt class="docutils literal"><span class="pre">CompImageHDU</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_images.html#section"><tt class="docutils literal"><span class="pre">Section</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_diff.html">Differs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_diff.html#fitsdiff"><tt class="docutils literal"><span class="pre">FITSDiff</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_diff.html#hdudiff"><tt class="docutils literal"><span class="pre">HDUDiff</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_diff.html#headerdiff"><tt class="docutils literal"><span class="pre">HeaderDiff</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_diff.html#imagedatadiff"><tt class="docutils literal"><span class="pre">ImageDataDiff</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_diff.html#rawdatadiff"><tt class="docutils literal"><span class="pre">RawDataDiff</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_diff.html#tabledatadiff"><tt class="docutils literal"><span class="pre">TableDataDiff</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_schema.html">Schemas</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#schema"><tt class="docutils literal"><span class="pre">Schema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#schemadefinitionerror"><tt class="docutils literal"><span class="pre">SchemaDefinitionError</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#schemavalidationerror"><tt class="docutils literal"><span class="pre">SchemaValidationError</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#validate-fits-datetime"><tt class="docutils literal"><span class="pre">validate_fits_datetime()</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#baseschema"><tt class="docutils literal"><span class="pre">BaseSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#checksumschema"><tt class="docutils literal"><span class="pre">ChecksumSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#primaryschema"><tt class="docutils literal"><span class="pre">PrimarySchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#extensionschema"><tt class="docutils literal"><span class="pre">ExtensionSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#standardextensionschema"><tt class="docutils literal"><span class="pre">StandardExtensionSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#compimageschema"><tt class="docutils literal"><span class="pre">CompImageSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#randomgroupsschema"><tt class="docutils literal"><span class="pre">RandomGroupsSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#basearrayschema"><tt class="docutils literal"><span class="pre">BaseArraySchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#primaryarrayschema"><tt class="docutils literal"><span class="pre">PrimaryArraySchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#imageextensionschema"><tt class="docutils literal"><span class="pre">ImageExtensionSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#basetableschema"><tt class="docutils literal"><span class="pre">BaseTableSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#tableextensionschema"><tt class="docutils literal"><span class="pre">TableExtensionSchema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_schema.html#bintableextensionschema"><tt class="docutils literal"><span class="pre">BinTableExtensionSchema</span></tt></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_verification.html">Verification options</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_verification.html#exception">exception</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_verification.html#ignore">ignore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_verification.html#fix">fix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_verification.html#silentfix">silentfix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_verification.html#warn">warn</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="api_files.html" title="File Handling and Convenience Functions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../users_guide/users_reference.html" title="Reference Manual"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

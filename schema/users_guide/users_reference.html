@@ -1,0 +1,182 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Reference Manual &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="up" title="PyFITS Users Guide" href="users_guide.html" />
+    <link rel="next" title="API Documentation" href="../api_docs/api_docs.html" />
+    <link rel="prev" title="Miscellaneous Features" href="users_misc.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../api_docs/api_docs.html" title="API Documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="users_misc.html" title="Miscellaneous Features"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" accesskey="U">PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Reference Manual</a><ul>
+<li><a class="reference internal" href="#converting-a-3-color-image-jpg-to-separate-fits-images">Converting a 3-color image (JPG) to separate FITS images</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="users_misc.html"
+                        title="previous chapter">Miscellaneous Features</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../api_docs/api_docs.html"
+                        title="next chapter">API Documentation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/users_guide/users_reference.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="reference-manual">
+<h1>Reference Manual<a class="headerlink" href="#reference-manual" title="Permalink to this headline">¶</a></h1>
+<p><strong>Examples</strong></p>
+<div class="section" id="converting-a-3-color-image-jpg-to-separate-fits-images">
+<h2>Converting a 3-color image (JPG) to separate FITS images<a class="headerlink" href="#converting-a-3-color-image-jpg-to-separate-fits-images" title="Permalink to this headline">¶</a></h2>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="../_images/Hs-2009-14-a-web.jpg"><img alt="Starting image" src="../_images/Hs-2009-14-a-web.jpg" style="width: 400.0px; height: 232.0px;" /></a>
+</div>
+<div class="figures container">
+<div class="figure">
+<a class="reference external image-reference" href="../_static/Red.jpg"><img alt="Red color information" src="../_images/Red.jpg" style="width: 200.0px; height: 116.0px;" /></a>
+<p class="caption">Red color information</p>
+</div>
+<div class="figure">
+<a class="reference external image-reference" href="../_static/Green.jpg"><img alt="Green color information" src="../_images/Green.jpg" style="width: 200.0px; height: 116.0px;" /></a>
+<p class="caption">Green color information</p>
+</div>
+<div class="figure">
+<a class="reference external image-reference" href="../_static/Blue.jpg"><img alt="Blue color information" src="../_images/Blue.jpg" style="width: 200.0px; height: 116.0px;" /></a>
+<p class="caption">Blue color information</p>
+</div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<span class="kn">import</span> <span class="nn">pyfits</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">Image</span>
+
+<span class="c">#get the image and color information</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s">&#39;hs-2009-14-a-web.jpg&#39;</span><span class="p">)</span>
+<span class="c">#image.show()</span>
+<span class="n">xsize</span><span class="p">,</span> <span class="n">ysize</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">size</span>
+<span class="n">r</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+<span class="n">rdata</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">getdata</span><span class="p">()</span> <span class="c"># data is now an array of length ysize\*xsize</span>
+<span class="n">gdata</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">getdata</span><span class="p">()</span>
+<span class="n">bdata</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">getdata</span><span class="p">()</span>
+
+<span class="c"># create numpy arrays</span>
+<span class="n">npr</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">rdata</span><span class="p">,</span> <span class="p">(</span><span class="n">ysize</span><span class="p">,</span> <span class="n">xsize</span><span class="p">))</span>
+<span class="n">npg</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">gdata</span><span class="p">,</span> <span class="p">(</span><span class="n">ysize</span><span class="p">,</span> <span class="n">xsize</span><span class="p">))</span>
+<span class="n">npb</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">bdata</span><span class="p">,</span> <span class="p">(</span><span class="n">ysize</span><span class="p">,</span> <span class="n">xsize</span><span class="p">))</span>
+
+<span class="c"># write out the fits images, the data numbers are still JUST the RGB</span>
+<span class="c"># scalings; don&#39;t use for science</span>
+<span class="n">red</span> <span class="o">=</span> <span class="n">pyfits</span><span class="o">.</span><span class="n">PrimaryHDU</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">npr</span><span class="p">)</span>
+<span class="n">red</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s">&#39;LATOBS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;32:11:56&quot;</span> <span class="c"># add spurious header info</span>
+<span class="n">red</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s">&#39;LONGOBS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;110:56&quot;</span>
+<span class="n">red</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="s">&#39;red.fits&#39;</span><span class="p">)</span>
+
+<span class="n">green</span> <span class="o">=</span> <span class="n">pyfits</span><span class="o">.</span><span class="n">PrimaryHDU</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">npg</span><span class="p">)</span>
+<span class="n">green</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s">&#39;LATOBS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;32:11:56&quot;</span>
+<span class="n">green</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s">&#39;LONGOBS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;110:56&quot;</span>
+<span class="n">green</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="s">&#39;green.fits&#39;</span><span class="p">)</span>
+
+<span class="n">blue</span> <span class="o">=</span> <span class="n">pyfits</span><span class="o">.</span><span class="n">PrimaryHDU</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">npb</span><span class="p">)</span>
+<span class="n">blue</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s">&#39;LATOBS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;32:11:56&quot;</span>
+<span class="n">blue</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s">&#39;LONGOBS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;110:56&quot;</span>
+<span class="n">blue</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="s">&#39;blue.fits&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../api_docs/api_docs.html" title="API Documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="users_misc.html" title="Miscellaneous Features"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" >PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

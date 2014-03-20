@@ -1,0 +1,372 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Schemas &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="up" title="API Documentation" href="api_docs.html" />
+    <link rel="next" title="Verification options" href="api_verification.html" />
+    <link rel="prev" title="Differs" href="api_diff.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="api_verification.html" title="Verification options"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="api_diff.html" title="Differs"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="api_docs.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Schemas</a><ul>
+<li><a class="reference internal" href="#schema"><tt class="docutils literal"><span class="pre">Schema</span></tt></a></li>
+<li><a class="reference internal" href="#schemadefinitionerror"><tt class="docutils literal"><span class="pre">SchemaDefinitionError</span></tt></a></li>
+<li><a class="reference internal" href="#schemavalidationerror"><tt class="docutils literal"><span class="pre">SchemaValidationError</span></tt></a></li>
+<li><a class="reference internal" href="#validate-fits-datetime"><tt class="docutils literal"><span class="pre">validate_fits_datetime()</span></tt></a></li>
+<li><a class="reference internal" href="#baseschema"><tt class="docutils literal"><span class="pre">BaseSchema</span></tt></a></li>
+<li><a class="reference internal" href="#checksumschema"><tt class="docutils literal"><span class="pre">ChecksumSchema</span></tt></a></li>
+<li><a class="reference internal" href="#primaryschema"><tt class="docutils literal"><span class="pre">PrimarySchema</span></tt></a></li>
+<li><a class="reference internal" href="#extensionschema"><tt class="docutils literal"><span class="pre">ExtensionSchema</span></tt></a></li>
+<li><a class="reference internal" href="#standardextensionschema"><tt class="docutils literal"><span class="pre">StandardExtensionSchema</span></tt></a></li>
+<li><a class="reference internal" href="#compimageschema"><tt class="docutils literal"><span class="pre">CompImageSchema</span></tt></a></li>
+<li><a class="reference internal" href="#randomgroupsschema"><tt class="docutils literal"><span class="pre">RandomGroupsSchema</span></tt></a></li>
+<li><a class="reference internal" href="#basearrayschema"><tt class="docutils literal"><span class="pre">BaseArraySchema</span></tt></a></li>
+<li><a class="reference internal" href="#primaryarrayschema"><tt class="docutils literal"><span class="pre">PrimaryArraySchema</span></tt></a></li>
+<li><a class="reference internal" href="#imageextensionschema"><tt class="docutils literal"><span class="pre">ImageExtensionSchema</span></tt></a></li>
+<li><a class="reference internal" href="#basetableschema"><tt class="docutils literal"><span class="pre">BaseTableSchema</span></tt></a></li>
+<li><a class="reference internal" href="#tableextensionschema"><tt class="docutils literal"><span class="pre">TableExtensionSchema</span></tt></a></li>
+<li><a class="reference internal" href="#bintableextensionschema"><tt class="docutils literal"><span class="pre">BinTableExtensionSchema</span></tt></a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="api_diff.html"
+                        title="previous chapter">Differs</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="api_verification.html"
+                        title="next chapter">Verification options</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/api_docs/api_schema.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-pyfits.schema">
+<span id="schemas"></span><h1>Schemas<a class="headerlink" href="#module-pyfits.schema" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="schema">
+<h2><a class="reference internal" href="#pyfits.Schema" title="pyfits.Schema"><tt class="xref py py-class docutils literal"><span class="pre">Schema</span></tt></a><a class="headerlink" href="#schema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.Schema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">Schema</tt><a class="headerlink" href="#pyfits.Schema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for all schemas.  This schema does not validate any keywords
+and is for all intents and purposes a no-op schema.  New schemas should
+be created by subclassing this class, or other schemas which have this
+class as a base.</p>
+<p>If a subclass of this schema contains invalid or unrecognized keyword
+properties a <a class="reference internal" href="#pyfits.SchemaDefinitionError" title="pyfits.SchemaDefinitionError"><tt class="xref py py-obj docutils literal"><span class="pre">SchemaDefinitionError</span></tt></a> is raised as soon as the class is
+created (typically at import time if the class is hard-coded in a Python
+module).  The only exception to this is callable properties which can only
+be evaluated in the context of a specific <a class="reference internal" href="api_headers.html#pyfits.Header" title="pyfits.Header"><tt class="xref py py-obj docutils literal"><span class="pre">Header</span></tt></a>.  In this case a
+<a class="reference internal" href="#pyfits.SchemaDefinitionError" title="pyfits.SchemaDefinitionError"><tt class="xref py py-obj docutils literal"><span class="pre">SchemaDefinitionError</span></tt></a> may be raised as well.</p>
+<dl class="classmethod">
+<dt id="pyfits.Schema.validate">
+<em class="property">classmethod </em><tt class="descname">validate</tt><big>(</big><em>header</em><big>)</big><a class="headerlink" href="#pyfits.Schema.validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validate a given <a class="reference internal" href="api_headers.html#pyfits.Header" title="pyfits.Header"><tt class="xref py py-obj docutils literal"><span class="pre">Header</span></tt></a> against this schema.  Returns <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> if the
+validation succeeds.  Otherwise raises a <a class="reference internal" href="#pyfits.SchemaValidationError" title="pyfits.SchemaValidationError"><tt class="xref py py-obj docutils literal"><span class="pre">SchemaValidationError</span></tt></a>.</p>
+<p>This may also raise a <a class="reference internal" href="#pyfits.SchemaDefinitionError" title="pyfits.SchemaDefinitionError"><tt class="xref py py-obj docutils literal"><span class="pre">SchemaDefinitionError</span></tt></a> if a context-dependent
+keyword property returns an invalid result for that property.  See
+the <a class="reference internal" href="../users_guide/users_schema.html#schemas"><em>FITS Header Schemas</em></a> section in the PyFITS documentation for more details
+on context-dependent properties.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="schemadefinitionerror">
+<h2><a class="reference internal" href="#pyfits.SchemaDefinitionError" title="pyfits.SchemaDefinitionError"><tt class="xref py py-class docutils literal"><span class="pre">SchemaDefinitionError</span></tt></a><a class="headerlink" href="#schemadefinitionerror" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.SchemaDefinitionError">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">SchemaDefinitionError</tt><big>(</big><em>name</em>, <em>message</em><big>)</big><a class="headerlink" href="#pyfits.SchemaDefinitionError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exception raised when a FITS <a class="reference internal" href="#pyfits.Schema" title="pyfits.Schema"><tt class="xref py py-obj docutils literal"><span class="pre">Schema</span></tt></a> definition is not valid.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="schemavalidationerror">
+<h2><a class="reference internal" href="#pyfits.SchemaValidationError" title="pyfits.SchemaValidationError"><tt class="xref py py-class docutils literal"><span class="pre">SchemaValidationError</span></tt></a><a class="headerlink" href="#schemavalidationerror" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.SchemaValidationError">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">SchemaValidationError</tt><big>(</big><em>name</em>, <em>message</em><big>)</big><a class="headerlink" href="#pyfits.SchemaValidationError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exception raised when a <a class="reference internal" href="#pyfits.Schema" title="pyfits.Schema"><tt class="xref py py-obj docutils literal"><span class="pre">Schema</span></tt></a> does not validate a FITS header.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="validate-fits-datetime">
+<h2><a class="reference internal" href="#pyfits.validate_fits_datetime" title="pyfits.validate_fits_datetime"><tt class="xref py py-func docutils literal"><span class="pre">validate_fits_datetime()</span></tt></a><a class="headerlink" href="#validate-fits-datetime" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="pyfits.validate_fits_datetime">
+<tt class="descclassname">pyfits.</tt><tt class="descname">validate_fits_datetime</tt><big>(</big><em>**ctx</em><big>)</big><a class="headerlink" href="#pyfits.validate_fits_datetime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validate date/time values in FITS headers according to the format given
+for the <tt class="docutils literal"><span class="pre">DATE</span></tt> keyword in Section 4.4.2.1 of the FITS Standard version
+3.0 (July 10, 2008).</p>
+<p>This function can be used in the <tt class="docutils literal"><span class="pre">'value'</span></tt> keyword property in a schema
+to validate a string value against the FITS datetime format.</p>
+</dd></dl>
+
+<p class="graphviz">
+<img src="../_images/inheritance-e41d6c913b6c64d45530b73b6b880fd19c7492e8.png" alt="Inheritance diagram of Schema" usemap="#inheritance23f8879a94" class="inheritance"/>
+<map id="inheritance23f8879a94" name="inheritance23f8879a94">
+<area shape="rect" id="node2" title="Base class for all schemas. &#160;This schema does not validate any keywords" alt="" coords="241,5,415,30"/>
+</map>
+</p>
+</div>
+<div class="section" id="baseschema">
+<h2><a class="reference internal" href="#pyfits.BaseSchema" title="pyfits.BaseSchema"><tt class="xref py py-class docutils literal"><span class="pre">BaseSchema</span></tt></a><a class="headerlink" href="#baseschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.BaseSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">BaseSchema</tt><a class="headerlink" href="#pyfits.BaseSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.schema.Schema</span></tt></p>
+<p>Minimal header schema that all valid HDUs must match according to the FITS
+Standard version 3.0 (July 10, 2008).</p>
+<p>This excludes the PRIMARY and XTENSION keywords each of which are handled
+by relevant extensions to this schema.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="checksumschema">
+<h2><a class="reference internal" href="#pyfits.ChecksumSchema" title="pyfits.ChecksumSchema"><tt class="xref py py-class docutils literal"><span class="pre">ChecksumSchema</span></tt></a><a class="headerlink" href="#checksumschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.ChecksumSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">ChecksumSchema</tt><a class="headerlink" href="#pyfits.ChecksumSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.schema.Schema</span></tt></p>
+<p>Schema for the latest version of the FITS Checksum convention
+(Seaman, Pence, Rots 2002).</p>
+<p>PyFITS supports this convention, but the keywords its defines are kept in
+its own schema to emphasize that they are not part of the FITS Standard.
+This class can basically be used as a mix-in to support the convention and
+reserve the keywords defined in the convention.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="primaryschema">
+<h2><a class="reference internal" href="#pyfits.PrimarySchema" title="pyfits.PrimarySchema"><tt class="xref py py-class docutils literal"><span class="pre">PrimarySchema</span></tt></a><a class="headerlink" href="#primaryschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.PrimarySchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">PrimarySchema</tt><a class="headerlink" href="#pyfits.PrimarySchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.BaseSchema</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.ChecksumSchema</span></tt></p>
+<p>Base schema for all primary HDU headers conforming to the FITS Standard
+version 3.0 (July 10, 2008).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="extensionschema">
+<h2><a class="reference internal" href="#pyfits.ExtensionSchema" title="pyfits.ExtensionSchema"><tt class="xref py py-class docutils literal"><span class="pre">ExtensionSchema</span></tt></a><a class="headerlink" href="#extensionschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.ExtensionSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">ExtensionSchema</tt><a class="headerlink" href="#pyfits.ExtensionSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.BaseSchema</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.ChecksumSchema</span></tt></p>
+<p>Base schema for extension HDU headers conforming to the FITS Standard
+version 3.0 (July 10, 2008), including extension types not otherwise
+defined by the standard.</p>
+<p>In other words, these are the minimal keywords required to conform to
+the FITS Standard even for extensions not defined by the standard.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="standardextensionschema">
+<h2><a class="reference internal" href="#pyfits.StandardExtensionSchema" title="pyfits.StandardExtensionSchema"><tt class="xref py py-class docutils literal"><span class="pre">StandardExtensionSchema</span></tt></a><a class="headerlink" href="#standardextensionschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.StandardExtensionSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">StandardExtensionSchema</tt><a class="headerlink" href="#pyfits.StandardExtensionSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.ExtensionSchema</span></tt></p>
+<p>Base schema for headers of all extension HDU types that are fully specified
+in the FITS Standard version 3.0 (July 10, 2008).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="compimageschema">
+<h2><a class="reference internal" href="#pyfits.CompImageSchema" title="pyfits.CompImageSchema"><tt class="xref py py-class docutils literal"><span class="pre">CompImageSchema</span></tt></a><a class="headerlink" href="#compimageschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.CompImageSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">CompImageSchema</tt><a class="headerlink" href="#pyfits.CompImageSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.table.BinTableExtensionSchema</span></tt></p>
+<p>Schema for headers of compressed image binary tables as defined by the
+Tiled Image Convention version 2.3 (July 2, 2013).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="randomgroupsschema">
+<h2><a class="reference internal" href="#pyfits.RandomGroupsSchema" title="pyfits.RandomGroupsSchema"><tt class="xref py py-class docutils literal"><span class="pre">RandomGroupsSchema</span></tt></a><a class="headerlink" href="#randomgroupsschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.RandomGroupsSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">RandomGroupsSchema</tt><a class="headerlink" href="#pyfits.RandomGroupsSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.image.BaseArraySchema</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.PrimarySchema</span></tt></p>
+<p>Schema for headers of random groups primary HDUs as described in Section 6
+of the FITS Standard version 3.0 (July 10, 2008).</p>
+<p>This is a little like a normal primary array, but with a little additional
+structure and restrictions.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="basearrayschema">
+<h2><a class="reference internal" href="#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-class docutils literal"><span class="pre">BaseArraySchema</span></tt></a><a class="headerlink" href="#basearrayschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.BaseArraySchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">BaseArraySchema</tt><a class="headerlink" href="#pyfits.BaseArraySchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.BaseSchema</span></tt></p>
+<p>Schema for headers of image HDUs (really HDUs containing single arrays) as
+detailed from Section 4.4 through Section 5 of the FITS Standard version
+3.0 (July 10, 2008).</p>
+<p>The only thing specific about array-like HDUs is that the keywords listed
+in this schema are enabled.  Section 4.4.2.5 defines these keywords as
+reserved in <em>all</em> conforming FITS headers, but they are only <em>valid</em> in
+either a primary HDU (include random groups HDUs) or an IMAGE extension.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="primaryarrayschema">
+<h2><a class="reference internal" href="#pyfits.PrimaryArraySchema" title="pyfits.PrimaryArraySchema"><tt class="xref py py-class docutils literal"><span class="pre">PrimaryArraySchema</span></tt></a><a class="headerlink" href="#primaryarrayschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.PrimaryArraySchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">PrimaryArraySchema</tt><a class="headerlink" href="#pyfits.PrimaryArraySchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.image.BaseArraySchema</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.PrimarySchema</span></tt></p>
+<p>Schema for primary headers in FITS HDUs conforming to the FITS Standard
+version 3.0 (July 10, 2008).  This includes primary image arrays as well as
+random groups structures.</p>
+<p>Note: Random groups structures require additional validation from the
+<a class="reference internal" href="#pyfits.RandomGroupsSchema" title="pyfits.RandomGroupsSchema"><tt class="xref py py-obj docutils literal"><span class="pre">RandomGroupsSchema</span></tt></a>.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="imageextensionschema">
+<h2><a class="reference internal" href="#pyfits.ImageExtensionSchema" title="pyfits.ImageExtensionSchema"><tt class="xref py py-class docutils literal"><span class="pre">ImageExtensionSchema</span></tt></a><a class="headerlink" href="#imageextensionschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.ImageExtensionSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">ImageExtensionSchema</tt><a class="headerlink" href="#pyfits.ImageExtensionSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.image.BaseArraySchema</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.ExtensionSchema</span></tt></p>
+<p>Schema for headers of IMAGE extension HDUs as described by Section 7.1 of
+the FITS Standard version 3.0 (July 10, 2008).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="basetableschema">
+<h2><a class="reference internal" href="#pyfits.BaseTableSchema" title="pyfits.BaseTableSchema"><tt class="xref py py-class docutils literal"><span class="pre">BaseTableSchema</span></tt></a><a class="headerlink" href="#basetableschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.BaseTableSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">BaseTableSchema</tt><a class="headerlink" href="#pyfits.BaseTableSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.base.ExtensionSchema</span></tt></p>
+<p>Common schema for headers for TABLE and BINTABLE extension HDUs as
+described in Sections 7.2 and 7.3 of the FITS Standard version 3.0
+(July 10, 2008).</p>
+<p>The validation of these keywors is common to both table types&#8211;extensions
+exist with specifics for TABLE and BINTABLE HDUs as <a class="reference internal" href="#pyfits.TableExtensionSchema" title="pyfits.TableExtensionSchema"><tt class="xref py py-obj docutils literal"><span class="pre">TableExtensionSchema</span></tt></a>
+and <a class="reference internal" href="#pyfits.BinTableExtensionSchema" title="pyfits.BinTableExtensionSchema"><tt class="xref py py-obj docutils literal"><span class="pre">BinTableExtensionSchema</span></tt></a> respectively.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="tableextensionschema">
+<h2><a class="reference internal" href="#pyfits.TableExtensionSchema" title="pyfits.TableExtensionSchema"><tt class="xref py py-class docutils literal"><span class="pre">TableExtensionSchema</span></tt></a><a class="headerlink" href="#tableextensionschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.TableExtensionSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">TableExtensionSchema</tt><a class="headerlink" href="#pyfits.TableExtensionSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.table.BaseTableSchema</span></tt></p>
+<p>Schema for headers of TABLE extension HDUs as described in Section 7.2 of
+the FITS Standard version 3.0 (July 10, 2008).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="bintableextensionschema">
+<h2><a class="reference internal" href="#pyfits.BinTableExtensionSchema" title="pyfits.BinTableExtensionSchema"><tt class="xref py py-class docutils literal"><span class="pre">BinTableExtensionSchema</span></tt></a><a class="headerlink" href="#bintableextensionschema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyfits.BinTableExtensionSchema">
+<em class="property">class </em><tt class="descclassname">pyfits.</tt><tt class="descname">BinTableExtensionSchema</tt><a class="headerlink" href="#pyfits.BinTableExtensionSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">pyfits.hdu.table.BaseTableSchema</span></tt></p>
+<p>Schema for headers of BINTABLE extension HDUs as described in Section 7.3
+of the FITS Standard version 3.0 (July 10, 2008).</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="api_verification.html" title="Verification options"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="api_diff.html" title="Differs"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="api_docs.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

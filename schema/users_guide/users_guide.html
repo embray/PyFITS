@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>PyFITS Users Guide &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="next" title="Introduction" href="users_intro.html" />
+    <link rel="prev" title="PyFITS Documentation" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="users_intro.html" title="Introduction"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="PyFITS Documentation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../index.html"
+                        title="previous chapter">PyFITS Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="users_intro.html"
+                        title="next chapter">Introduction</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/users_guide/users_guide.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="pyfits-users-guide">
+<h1>PyFITS Users Guide<a class="headerlink" href="#pyfits-users-guide" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="users_intro.html">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_intro.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_intro.html#user-support">User Support</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_tutorial.html">Quick Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_tutorial.html#reading-and-updating-existing-fits-files">Reading and Updating Existing FITS Files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#opening-a-fits-file">Opening a FITS file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#working-with-fits-headers">Working with FITS Headers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#working-with-image-data">Working with Image Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#working-with-table-data">Working With Table Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#save-file-changes">Save File Changes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_tutorial.html#creating-a-new-fits-file">Creating a New FITS File</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#creating-a-new-image-file">Creating a New Image File</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_tutorial.html#creating-a-new-table-file">Creating a New Table File</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_tutorial.html#convenience-functions">Convenience Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_headers.html">FITS Headers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_headers.html#header-of-an-hdu">Header of an HDU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_headers.html#the-header-attribute">The Header Attribute</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_headers.html#value-access-updating-and-creating">Value Access, Updating, and Creating</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_headers.html#comment-history-and-blank-keywords">COMMENT, HISTORY, and Blank Keywords</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_headers.html#keyword-wildcards">Keyword Wildcards</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_headers.html#card-images">Card Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_headers.html#continue-cards">CONTINUE Cards</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_headers.html#hierarch-cards">HIERARCH Cards</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_image.html">Image Data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_image.html#image-data-as-an-array">Image Data as an Array</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_image.html#scaled-data">Scaled Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_image.html#reading-scaled-image-data">Reading Scaled Image Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_image.html#writing-scaled-image-data">Writing Scaled Image Data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_image.html#data-sections">Data Sections</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_table.html">Table Data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_table.html#table-data-as-a-record-array">Table Data as a Record Array</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#what-is-a-record-array">What is a Record Array?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#metadata-of-a-table">Metadata of a Table</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#reading-a-fits-table">Reading a FITS Table</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_table.html#table-operations">Table Operations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#selecting-records-in-a-table">Selecting Records in a Table</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#merging-tables">Merging Tables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#appending-tables">Appending Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_table.html#scaled-data-in-tables">Scaled Data in Tables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_table.html#creating-a-fits-table">Creating a FITS Table</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_table.html#column-creation">Column Creation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_verification.html">Verification</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_verification.html#fits-standard">FITS Standard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_verification.html#verification-options">Verification Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_verification.html#verifications-at-different-data-object-levels">Verifications at Different Data Object Levels</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_verification.html#verification-at-hdulist">Verification at HDUList</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_verification.html#verification-at-each-hdu">Verification at Each HDU</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_verification.html#verification-at-each-card">Verification at Each Card</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_verification.html#verification-using-the-fits-checksum-keyword-convention">Verification using the FITS Checksum Keyword Convention</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_unfamiliar.html">Less Familiar Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_unfamiliar.html#ascii-tables">ASCII Tables</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#creating-an-ascii-table">Creating an ASCII Table</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_unfamiliar.html#variable-length-array-tables">Variable Length Array Tables</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#creating-a-variable-length-array-table">Creating a Variable Length Array Table</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_unfamiliar.html#random-access-groups">Random Access Groups</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#header-and-summary">Header and Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#data-group-parameters">Data: Group Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#data-image-data">Data: Image Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#creating-a-random-access-group-hdu">Creating a Random Access Group HDU</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_unfamiliar.html#compressed-image-data">Compressed Image Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#id1">Header and Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#data">Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_unfamiliar.html#creating-a-compressed-image-hdu">Creating a Compressed Image HDU</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_schema.html">FITS Header Schemas</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_schema.html#enter-pyfits-schema">Enter <tt class="docutils literal"><span class="pre">pyfits.schema</span></tt></a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_schema.html#pyfits-schema-basics">PyFITS schema basics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#gotchas">Gotchas</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_schema.html#using-callable-properties">Using callable properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_schema.html#indexed-keywords">Indexed keywords</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#multiple-indices">Multiple indices</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="users_schema.html#schema-inheritance">Schema inheritance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_schema.html#supported-keyword-properties">Supported keyword properties</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#mandatory">mandatory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#valid">valid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#position">position</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#value">value</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users_schema.html#indices">indices</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_scripts.html">Executable Scripts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_scripts.html#module-pyfits.scripts.fitscheck">fitscheck</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_scripts.html#fitsdiff">fitsdiff</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_misc.html">Miscellaneous Features</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_misc.html#warning-messages">Warning Messages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users_misc.html#differs">Differs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="users_reference.html">Reference Manual</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="users_reference.html#converting-a-3-color-image-jpg-to-separate-fits-images">Converting a 3-color image (JPG) to separate FITS images</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="users_intro.html" title="Introduction"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="PyFITS Documentation"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,713 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>PyFITS Developers Guide &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="next" title="Appendix" href="../appendix/appendix.html" />
+    <link rel="prev" title="Verification options" href="../api_docs/api_verification.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../appendix/appendix.html" title="Appendix"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../api_docs/api_verification.html" title="Verification options"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">PyFITS Developers Guide</a><ul>
+<li><a class="reference internal" href="#getting-the-source-code">Getting the source code</a><ul>
+<li><a class="reference internal" href="#synchronizing-with-svn">Synchronizing with SVN</a><ul>
+<li><a class="reference internal" href="#syncing-new-changes-to-svn">Syncing new changes to SVN</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#maintenance">Maintenance</a></li>
+<li><a class="reference internal" href="#releasing">Releasing</a><ul>
+<li><a class="reference internal" href="#prerequisites-for-performing-a-release">Prerequisites for performing a release</a></li>
+<li><a class="reference internal" href="#release-procedure">Release procedure</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../api_docs/api_verification.html"
+                        title="previous chapter">Verification options</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../appendix/appendix.html"
+                        title="next chapter">Appendix</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/developers_guide/developers_guide.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="pyfits-developers-guide">
+<h1>PyFITS Developers Guide<a class="headerlink" href="#pyfits-developers-guide" title="Permalink to this headline">¶</a></h1>
+<p>This &#8220;developers guide&#8221; will be brief, as PyFITS will, in the near future,
+be deprecated in favor of Astropy (which includes a port of PyFITS now dubbed
+<tt class="docutils literal"><span class="pre">astropy.io.fits</span></tt>.  As such, it should be sufficient for any developers
+wishing to contribute to PyFITS to look at the developer documentation for
+Astropy, as much of it applies equally well.  In particular, please look at
+the Astropy <a class="reference external" href="http://astropy.readthedocs.org/en/v0.3/development/codeguide.html">Coding Guidelines</a> and the <a class="reference external" href="http://astropy.readthedocs.org/en/v0.3/development/docguide.html">Documentation Guidelines</a> before
+getting started with any major contributions to PyFITS (don&#8217;t worry if you
+don&#8217;t immediately absorb <em>everything</em> in those guidelines&#8211;it&#8217;s just good to
+be aware that they exist and have a rough understanding of how to approach the
+source code).</p>
+<div class="section" id="getting-the-source-code">
+<h2>Getting the source code<a class="headerlink" href="#getting-the-source-code" title="Permalink to this headline">¶</a></h2>
+<p>PyFITS was originally developed in SVN, but now most development has moved to
+Git, primarily for ease of syncing changes to Astropy.  That said, the SVN
+repository is still maintained for legacy purposes.  PyFITS&#8217; lead maintainer
+at STScI will handle synchronizing the Git and SVN repositories, but the steps
+for configuring git-svn are documented below for posterity.  Outside users
+wishing to contribute to the source code should start with Astropy&#8217;s guide to
+<a class="reference external" href="http://astropy.readthedocs.org/en/v0.3/development/workflow/index.html">Contributing to Astropy</a>.</p>
+<p>The official PyFITS GitHub page is at: <a class="reference external" href="https://github.com/spacetelescope/pyfits">https://github.com/spacetelescope/pyfits</a></p>
+<p>The best way to contribute to PyFITS is to create an account on GitHub, fork
+your own copy of the PyFITS repository, and then make your changes in your
+personal fork and make a pull request when they are ready to share.  The entire
+process is described in Astropy&#8217;s <a class="reference external" href="http://astropy.readthedocs.org/en/v0.3/development/workflow/development_workflow.html">Workflow for Developers</a> document.  That
+documention was written for Astropy, but applies all the same to PyFITS.
+Just replace any instance of <tt class="docutils literal"><span class="pre">astropy/astropy.git</span></tt> with
+<tt class="docutils literal"><span class="pre">spacetelescope/PyFITS.git</span></tt> and so on.  Use of virtualenv and
+<tt class="docutils literal"><span class="pre">./setup.py</span> <span class="pre">develop</span></tt> are strongly encouraged for developing on PyFITS&#8211;use of
+this tools is also described in the aforementioned Workflow for Developers
+document.</p>
+<div class="section" id="synchronizing-with-svn">
+<h3>Synchronizing with SVN<a class="headerlink" href="#synchronizing-with-svn" title="Permalink to this headline">¶</a></h3>
+<p>This section is primarily intended for developers at STScI who have commit
+access to the PyFITS SVN repository (<a class="reference external" href="http://svn6.assembla.com/svn/pyfits">http://svn6.assembla.com/svn/pyfits</a>).
+The PyFITS Git and SVN repositories are synced using the git-svn command.
+git-svn can be tricky to install as it requires the Perl bindings for SVN, as
+well as SVN itself and of course Git.  The easiest way to get git-svn is to
+ask a system administrator to install it from the OS packaging system.</p>
+<p>Most guides for setting up git-svn start out with either the <tt class="docutils literal"><span class="pre">git</span> <span class="pre">svn</span> <span class="pre">init</span></tt>
+command or <tt class="docutils literal"><span class="pre">git</span> <span class="pre">svn</span> <span class="pre">clone</span></tt>.  But because the work of synchronizing the Git
+and SVN repositories up until this point has already been done, a faster,
+though seemingly less straightforward approach, is to just clone the GitHub
+reposiotry and add the git-svn metadata manually:</p>
+<ol class="arabic">
+<li><p class="first">Clone the main spacetelescope GitHub repository:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git clone git@github.com:spacetelescope/PyFITS.git
+</pre></div>
+</div>
+</li>
+<li><p class="first">cd into the repository and open <tt class="docutils literal"><span class="pre">.git/config</span></tt> in an editor and add the
+following:</p>
+<div class="highlight-python"><div class="highlight"><pre>[svn]
+    authorsfile = .authors
+[svn-remote &quot;svn&quot;]
+    url = http://svn6.assembla.com/svn/pyfits
+    fetch = trunk:refs/remotes/trunk
+    branches = branches/{3.1-stable,3.0-stable}:refs/remotes/branches/*
+[branch &quot;3.0-stable&quot;]
+    remote = .
+    merge = refs/remotes/branches/3.0-stable
+[branch &quot;3.1-stable&quot;]
+    remote = .
+    merge = refs/remotes/branches/3.1-stable
+</pre></div>
+</div>
+<p>Repeat the <tt class="docutils literal"><span class="pre">[branch</span> <span class="pre">&quot;X.Y-stable&quot;]</span></tt> section following the above pattern
+for any actively maintained release branches (see the &#8220;Maintenance&#8221; section
+below for more details on release branches). Likewise add each branch to
+the <tt class="docutils literal"><span class="pre">branches</span> <span class="pre">=</span></tt> option under the <tt class="docutils literal"><span class="pre">[svn-remote</span> <span class="pre">&quot;svn&quot;]</span></tt> section (you
+<em>may</em> put a <tt class="docutils literal"><span class="pre">*</span></tt> here to get all branches. It is also possible to sync
+all SVN tags.  But as most of those branches are defunct it is probably
+not desirable to sync them all (it is a very time consuming operation).</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Do not forget to set the <tt class="xref py py-obj docutils literal"><span class="pre">[svn]/authorsfile</span> <span class="pre">=</span> <span class="pre">.authors</span></tt> option, or
+the repository will get severely confused when trying to sync SVN
+changes with the git repository.  The .authors file maps SVN usernames
+to developers&#8217; name/e-mail address to use in git commits.  If you intend
+to synchronize changes you make with SVN, make sure to add yourself to
+the .authors file.  The format should be self-explanatory.</p>
+</div>
+</li>
+<li><p class="first">Put the hash of the latest revision of the upstream master branch in refs
+file for trunk, so git-svn knows where to start synchronizing with SVN&#8217;s
+trunk:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git rev-parse origin/master &gt; .git/refs/remotes/trunk
+</pre></div>
+</div>
+<p>Likewise for each stable branch do, for example:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ mkdir .git/refs/remotes/branches/
+$ git rev-parse origin/3.1-stable &gt; .git/refs/remotes/branches/3.1-stable
+</pre></div>
+</div>
+</li>
+<li><p class="first">Finally, do:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git svn fetch
+</pre></div>
+</div>
+<p>to synchronize any new revisions in the SVN repository.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This fetch operation can still take a pretty long time, especially on
+the branches.  It may appear to hang at some points&#8211;just be patient
+and leave it running.  I&#8217;ve yet to find a way to speed it up any
+further.</p>
+</div>
+</li>
+</ol>
+<div class="section" id="syncing-new-changes-to-svn">
+<h4>Syncing new changes to SVN<a class="headerlink" href="#syncing-new-changes-to-svn" title="Permalink to this headline">¶</a></h4>
+<p>The command for committing new changes in git to the SVN repository is
+<tt class="xref py py-obj docutils literal"><span class="pre">git</span> <span class="pre">svn</span> <span class="pre">dcommit</span></tt>.  This command goes through all commits on the current
+branch that have <em>not</em> yet been committed to SVN and does so.</p>
+<p>Whenever you are about to push new changes on the master branch to the remote
+remote repository on GitHub it is best to first cross-commit those changes to
+SVN.  This is because git-svn rewrites the commit messages on all your commits
+to include a reference to the SVN revision that was created from that commit.
+So if you push first, and then run <tt class="xref py py-obj docutils literal"><span class="pre">git</span> <span class="pre">svn</span> <span class="pre">dcommit</span></tt> you will now have
+different commits (as far as their SHA has is concerned) on your local
+repository from what you just pushed to the remote repository.  The simplest
+way to resolve this, when it happens, is to <tt class="xref py py-obj docutils literal"><span class="pre">git</span> <span class="pre">push</span> <span class="pre">--force</span></tt>.  This will
+override the old history with the new history that includes the SVN revisions
+in the commit messages.</p>
+<p>It&#8217;s easier, however, to remember to always run <tt class="xref py py-obj docutils literal"><span class="pre">git</span> <span class="pre">svn</span> <span class="pre">dcommit</span></tt> before doing
+a <tt class="xref py py-obj docutils literal"><span class="pre">git</span> <span class="pre">push</span></tt>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="maintenance">
+<h2>Maintenance<a class="headerlink" href="#maintenance" title="Permalink to this headline">¶</a></h2>
+<p>At any given time there are two to three lines of development on PyFITS
+(possibly more if some critical bug is discovered that needs to be backported
+to older release lines, though such situations are rare).  Typically there is
+the mainline development in the &#8216;master&#8217; branch, and at least one branch named
+after the last minor release.  For example, if the version being developed in
+the mainline is &#8216;3.2.0&#8217; there will be, at a minimum, a &#8216;3.1-stable&#8217; branch into
+which bug fixes can be ported.  There may also be a &#8216;3.0-stable&#8217; branch and so
+on so long as new bugfix releases are being made with &#8216;3.0.z&#8217; versions.</p>
+<p>Bug fix releases should never add new public APIs or change existing ones&#8211;they
+should only correct bugs or major oversights.  &#8220;Minor&#8221; releases, where the
+second number in the version is increased, may introduce new APIs and may
+<em>deprecate</em> old interfaces (see the <tt class="docutils literal"><span class="pre">&#64;deprecated</span></tt> decorated in
+<tt class="docutils literal"><span class="pre">pyfits.util</span></tt>, but may not otherwise remove or change (non-buggy) behavior of
+old interfaces without backwards compatibility with the previous versions in
+the same major version line.  Major releases may break backwards compatibility
+so long as warning has been given through <tt class="docutils literal"><span class="pre">&#64;deprecated</span></tt> markers and
+documentation that those interfaces will break in future versions.</p>
+<p>In general all development should be done in the &#8216;master&#8217; branch, including
+development of new features and bug fixes (though temporary branches should
+certainly be used aggressively for any individual feature or fix being
+developed, they should be merged back into &#8216;master&#8217; when ready).</p>
+<p>The only exception to this rule is when developing a bug fix that <em>only</em>
+applies to an older release line.  For example it&#8217;s possible for a bug to exist
+in version &#8216;3.1.1&#8217; that no longer exists in the &#8216;master&#8217; branch (perhaps
+because it pertains to an older API), but that still exists in the &#8216;3.1-stable&#8217;
+branch.  Then that bug should be fixed in the &#8216;3.1-stable&#8217; branch to be
+included in the version &#8216;3.1.2&#8217; bugfix release (assuming a bugfix release is
+planned).  If that bug pertains to any older release branches (such as
+&#8216;3.0-stable&#8217;) it should also be backported to those branches by way of
+<tt class="docutils literal"><span class="pre">git</span> <span class="pre">cherry-pick</span></tt>.</p>
+</div>
+<div class="section" id="releasing">
+<h2>Releasing<a class="headerlink" href="#releasing" title="Permalink to this headline">¶</a></h2>
+<p>Creating a PyFITS release consists 3 main stages each with several sub-steps
+according to this rough outline:</p>
+<ol class="arabic simple">
+<li>Pre-release<ol class="loweralpha">
+<li>Set the version string for the release in the setup.cfg file</li>
+<li>Set the release date in the changelog (CHANGES.txt)</li>
+<li>Test that README.txt and CHANGES.txt can be correctly parsed as
+RestructuredText.</li>
+<li>Commit these preparations to the repository, creating a specific commit
+to tag as the &#8220;release&#8221;</li>
+</ol>
+</li>
+<li>Release<ol class="loweralpha">
+<li>Create a tag from the commit created in the pre-release stage</li>
+<li>Register the new release on PyPI</li>
+<li>Build a source distribution of the release and test that it is
+installable (specifically, installable with pip) and that all the tests
+pass from an installed version</li>
+</ol>
+</li>
+<li>Post-release<ol class="loweralpha">
+<li>Upload the source distribution to PyPI</li>
+<li>Set the version string for the &#8220;next&#8221; release in the setup.cfg file (the
+choice of the next version is based on inference, and does not mean the
+&#8220;next&#8221; version can&#8217;t be changed later if desired)</li>
+<li>Create a new section in CHANGES.txt for the next release (using the same
+&#8220;next&#8221; version as in part b)</li>
+<li>Commit these &#8220;post-release&#8221; changes to the repository</li>
+<li>Push the release commits and the new tag to the remote repository
+(GitHub)</li>
+<li>Update the PyFITS website to reflect the new version</li>
+<li>Build Windows installers for all supported Python versions and upload
+them to PyPI</li>
+</ol>
+</li>
+</ol>
+<p>Most of these steps are automated by using <a class="reference external" href="https://pypi.python.org/pypi/zest.releaser">zest.releaser</a> along with some
+hooks designed specifically for PyFITS that automate actions such as updating
+the PyFITS website.</p>
+<div class="section" id="prerequisites-for-performing-a-release">
+<h3>Prerequisites for performing a release<a class="headerlink" href="#prerequisites-for-performing-a-release" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic">
+<li><p class="first">Because PyFITS is released (registered and uploaded to) on PyPI it is
+necessary to create an account on PyPI and get assigned a &#8220;Maintainer&#8221;
+role for the PyFITS package.  Currently the package owners&#8211;the only two
+people who can add additional Maintainers are Erik Bray &lt;<a class="reference external" href="mailto:embray&#37;&#52;&#48;stsci&#46;edu">embray<span>&#64;</span>stsci<span>&#46;</span>edu</a>&gt;
+and Nicolas Barbey &lt;<a class="reference external" href="mailto:nicolas&#46;a&#46;barbey&#37;&#52;&#48;gmail&#46;com">nicolas<span>&#46;</span>a<span>&#46;</span>barbey<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;.  (It remains a &#8220;todo&#8221; item
+to add a shared &#8220;space telescope&#8221; account.  In the meantime, should both of
+those people be hit by a bus simultaneously the PyPI administrators will be
+reasonable if the situation is explained to them with proper documentation).</p>
+<p>Once your PyPI account is set up, it is necessary to add your PyPI
+credentials (username and password) to the <tt class="docutils literal"><span class="pre">.pypirc</span></tt> file in your home
+directory with the following format:</p>
+<div class="highlight-python"><div class="highlight"><pre>[server-login]
+username: &lt;your PyPI username&gt;
+password: &lt;your PyPI password&gt;
+</pre></div>
+</div>
+<p>Unfortunately some the <tt class="docutils literal"><span class="pre">setup.py</span></tt> commands for interacting with PyPI
+are broken in that they don&#8217;t allow interactive password entry.  Creating
+the <tt class="docutils literal"><span class="pre">.pypirc</span></tt> file is <em>currently</em> the most reliable way to make
+authentication with PyPI &#8220;just work&#8221;.  Be sure to <tt class="docutils literal"><span class="pre">chmod</span> <span class="pre">600</span></tt> this file.</p>
+</li>
+<li><p class="first">Generate a signing key&#8211;all PyFITS tags are now cryptographically signed
+when creating the tag (using <tt class="docutils literal"><span class="pre">git</span> <span class="pre">tag</span> <span class="pre">-s</span></tt>).  The <a class="reference external" href="http://astropy.readthedocs.org/en/v0.3/development/releasing.html">Astropy release
+process</a> page documents how to set this up.</p>
+</li>
+<li><p class="first">Also make sure to have an account on readthedocs.org with administrative
+access to the PyFITS project on Read the Docs:
+<a class="reference external" href="https://readthedocs.org/projects/pyfits/">https://readthedocs.org/projects/pyfits/</a>
+This hosts documentation for all (recent) versions of PyFITS.  (TODO: Here
+also we need a &#8220;space telescope&#8221; account with administrative rights to all
+STScI projects that use RtD.)</p>
+</li>
+<li><p class="first">It&#8217;s best to do the release in a relatively &#8220;clean&#8221; Python environment, so
+make sure you have <a class="reference external" href="https://pypi.python.org/pypi/virtualenv">virtualenv</a> installed and that you&#8217;ve had some practice
+in using it.</p>
+</li>
+<li><p class="first">Make sure you have Numpy and nose installed and are able to run the PyFITS
+tests successfully without any errors.  Even better if you can do this with
+tox.</p>
+</li>
+<li><p class="first">Make sure that at least someone can make the Windows builds.  This requires
+a Windows machine with at least Windows XP, Mingw32 with msys, and all of
+the Python development packages.  Python versions 2.5, 2.6, 2.7, 3.1, and
+3.2 should be installed with the installers from python.org, as well as a
+recent version of Numpy for each of those Python versions (currently Numpy
+1.6.x), as well as Git.  (TODO: More detailed instructions for setting up
+a Windows development environment.)</p>
+</li>
+<li><p class="first">PyFITS also has a page on STScI&#8217;s website:
+<a class="reference external" href="http://www.stsci.edu/institute/software_hardware/pyfits">http://www.stsci.edu/institute/software_hardware/pyfits</a>.  This is normally
+the first hit when Googling &#8216;pyfits&#8217; so it&#8217;s important to keep up to date.
+At a minimum each release should update the front page to mention the most
+recent release, the Release Notes page with an HTML rendering of the most
+recent changelog, and the download page with links to all the current
+versions.  See the exisint site for examples.  The STScI website has both
+a test server and a production server.  It&#8217;s difficult for content creators
+to get direct access to the production server, but at least make sure you
+have access to the test server on port 8072, and that IT has given you
+permission to write to the PyFITS section of the site.</p>
+<p>Part of the PyFITS automated release script attempts to update the PyFITS
+website (on the test server) as part of the standard release process.  So
+it&#8217;s important to test your access to the site and ability to make edits.
+If for any reason the automatic update fails (e.g. your authentication
+fails) it is still possible to update the site manually.</p>
+<p>Once the updates are made it&#8217;s necessary to have IT push the updates to the
+production server.  As of writing the best person to ask is George Smyth&#8211;
+asking him directly is the fastest way to get it done, though if you send a
+ticket to IT it will be handled eventually.</p>
+</li>
+<li><p class="first">Triage issues is milestones in the PyFITS bug tracker(s).  Currently this
+includes the Trac site: <a class="reference external" href="https://trac.assembla.com/pyfits/roadmap">https://trac.assembla.com/pyfits/roadmap</a> and the
+GitHub site: <a class="reference external" href="https://github.com/spacetelescope/PyFITS/issues/milestones">https://github.com/spacetelescope/PyFITS/issues/milestones</a></p>
+<p>No new tickets are being added in Trac, so after all open tickets in the
+Trac site have been addressed, milestones will only need to be managed in
+GitHub.</p>
+<p>First create a new milestone for the version after the version to be
+released.  If a major/minor release is being made, make the milestone for
+the next bugfix release in that series as well.  For example if releasing a
+bugfix release like 3.0.1, create a milestone for 3.0.2.  If releasing
+3.1.0, create milestones for 3.2.0 <em>and</em> 3.2.1.</p>
+<p>If the milestone for the to be released version still has any issues
+remaining in it, such as bugs that were not fixed, move them to the next
+appriopriate milestone if they will not be addressed before the release
+(or close issues that are no longer applicable).  Ensure that the milestone
+for the to be released version has no open issues remaining in it.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="release-procedure">
+<h3>Release procedure<a class="headerlink" href="#release-procedure" title="Permalink to this headline">¶</a></h3>
+<p>(These instructions are adapted from the <a class="reference external" href="http://astropy.readthedocs.org/en/v0.3/development/releasing.html">Astropy release process</a>
+which itself was adapted from PyFITS&#8217; release process&#8211;the former just got
+written down first.)</p>
+<ol class="arabic">
+<li><p class="first">In a directory outside the pyfits repository, create an activate a
+virtualenv in which to do the release (it&#8217;s okay to use
+<tt class="docutils literal"><span class="pre">--system-site-packages</span></tt> for dependencies like Numpy):</p>
+<div class="highlight-python"><div class="highlight"><pre>$ virtualenv --system-site-packages --distribute pyfits-release
+$ source pyfits-release/bin/activate
+</pre></div>
+</div>
+</li>
+<li><p class="first">Obtain a <em>clean</em> version of the PyFITS repository. That is, one where you
+don’t have any intermediate build files. It is best to use a fresh
+<tt class="docutils literal"><span class="pre">git</span> <span class="pre">clone</span></tt> from the main repository on GitHub without any of the git-svn
+configuration. This is because the git-svn support in zest.releaser does not
+handle tagging in branches very well yet.</p>
+</li>
+<li><p class="first">Use <tt class="docutils literal"><span class="pre">git</span> <span class="pre">checkout</span></tt> to switch to the appropriate branch from which to do
+the release.  For a new major or minor release (such as 3.0.0 or 3.1.0)
+this should be the &#8216;master&#8217; branch.  When making a bugfix release it is
+necessary to switch to the appropriate bugfix branch (e.g.
+<tt class="docutils literal"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">3.1-stable</span></tt> to release 3.1.2 up from 3.1.1).</p>
+</li>
+<li><p class="first">Install <tt class="docutils literal"><span class="pre">zest.releaser</span></tt> into the virtualenv; use <tt class="docutils literal"><span class="pre">--upgrade</span> <span class="pre">--force</span></tt> to
+ensure that the latest version is installed in the virtualenv (if you’re
+running a csh variant make sure to run rehash afterwards too):</p>
+<div class="highlight-python"><div class="highlight"><pre>$ pip install zest.releaser --upgrade --force
+</pre></div>
+</div>
+</li>
+<li><p class="first">Install <tt class="docutils literal"><span class="pre">stsci.distutils</span></tt> which includes some additional releaser hooks
+that are useful:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ pip install stsci.distutils --upgrade --force
+</pre></div>
+</div>
+</li>
+<li><p class="first">Ensure that any lingering changes to the code have been committed, then
+start the release by running:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ fullrelease
+</pre></div>
+</div>
+</li>
+<li><p class="first">You will be asked to enter the version to be released.  Press enter to
+accept the default (which will normally be correct) or enter a specific
+version string.  A diff will then be shown of CHANGES.txt and setup.cfg
+showing that a release date has been added to the changelog, and that the
+version has been updated in setup.cfg.  Enter &#8216;Y&#8217; when asked to commit these
+changes.</p>
+</li>
+<li><p class="first">You will then be shown the command that will be run to tag the release.
+Enter &#8216;Y&#8217; to confirm and run the command.</p>
+</li>
+<li><p class="first">When asked &#8220;Check out the tag (for tweaks or pypi/distutils server upload)&#8221;
+enter &#8216;Y&#8217;: This feature is used when uploading the source distribution to
+our local package index.  When asked to &#8216;Register and upload&#8217; to PyPI enter
+&#8216;N&#8217;.  We will do this manually later in the process once we&#8217;ve tested the
+release out first.  If asked to add the package to the &#8220;STScI package
+index&#8221; enter &#8216;N&#8217;&#8211;this package index is no longer being maintained.</p>
+</li>
+<li><p class="first">You will be asked to enter a new development version.  Normally the next
+logical version will be selected&#8211;press enter to accept the default, or
+enter a specific version string.  Do not add &#8221;.dev&#8221; to the version, as this
+will be appended automatically (ignore the message that says &#8221;.dev0 will be
+appended&#8221;&#8211;it will actually be &#8221;.dev&#8221; without the 0).  For example, if the
+just-released version was &#8220;3.1.0&#8221; the default next version will be &#8220;3.1.1&#8221;.
+If we want the next version to be, say &#8220;3.2.0&#8221; then that must be entered
+manually.</p>
+</li>
+<li><p class="first">You will be shown a diff of CHANGES.txt showing that a new section has been
+added for the new development version, and showing that the version has
+been updated in setup.py.  Enter &#8216;Y&#8217; to commit these changes.</p>
+</li>
+<li><p class="first">When asked to push the changes to a remote repository, enter &#8216;N&#8217;.  We want
+to test the release out before pushing changes to the remote repository or
+registering in PyPI.</p>
+</li>
+<li><p class="first">When asked to update the PyFITS homepage enter &#8216;Y&#8217;.  The enter the name of
+the previous version (in the same MAJOR.MINOR.x branch) and then the name
+of the just released version.  The defaults will usually be correct.  When
+asked, enter the username and password for your Zope login.  As of writing
+this is not necessarily the same as your Exchange password.  If the update
+succeeeds make sure to e-mail IT and ask them to push the updated pages
+from the test site to the production site.</p>
+<p>This should complete the portion of the process that&#8217;s automated at this point
+(though future versions will automate these steps as well, after a few needed
+features are added to zest.releaser).</p>
+</li>
+<li><p class="first">Check out the tag of the released version.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git checkout v3.1.0
+</pre></div>
+</div>
+</li>
+<li><p class="first">Create the source distribution by doing:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ python setup.py sdist
+</pre></div>
+</div>
+</li>
+<li><p class="first">Now, outside the repository create and activate another new virtualenv
+for testing the release:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ virtualenv --system-site-packages --distribute pyfits-release-test
+$ source pyfits-release-test/bin/activate
+</pre></div>
+</div>
+</li>
+<li><p class="first">Use <tt class="docutils literal"><span class="pre">pip</span></tt> to install the source distribution built in step 13 into the
+new test virtualenv.  This will look something like:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ pip install PyFITS/dist/pyfits-3.2.0.tar.gz
+</pre></div>
+</div>
+<p>where the path should be to the sole <tt class="docutils literal"><span class="pre">.tar.gz</span></tt> file in the <tt class="docutils literal"><span class="pre">dist/</span></tt>
+directory under your repository clone.</p>
+</li>
+<li><p class="first">Try running the tests in the installed PyFITS:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ pip install nose --force --upgrade
+$ nosetests pyfits
+</pre></div>
+</div>
+<p>If any of the tests fail abort the process and start over.  Undo the
+previous two git commits (the one tagged as the release, and the one
+where you bumped to the next dev version):</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git reset --hard HEAD^^
+</pre></div>
+</div>
+<p>Also delete the newly created tag:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git tag -d v3.2.0
+</pre></div>
+</div>
+<p>Resolve the test failure, commit any new fixes, and start the release
+procedure over again (it&#8217;s rare for this to be an issue if the tests
+passed <em>before</em> starting the release, but it is possible&#8211;the most likely
+case being if some file that <em>should</em> be installed is either not getting
+installed or is not included in the source distribution in the first
+place).</p>
+</li>
+<li><p class="first">Assuming the test installation worked, change directories back into the
+repository and push the new tag/release to the main repository on GitHub:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git push --tags
+</pre></div>
+</div>
+<p>This initial step is necessary since the tag was made off of a pure git
+commit.  But when we synchronize with SVN the commit history will change
+so we need to force an additional push to the GitHub repository:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git svn dcommit
+$ git push --force
+</pre></div>
+</div>
+<p>Then register the release on PyPI with:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ python setup.py register
+</pre></div>
+</div>
+<p>Upload the source distribution to PyPI; this is preceded by re-running the
+sdist command, which is necessary for the upload command to know which
+distribution to upload:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ python setup.py sdist upload
+</pre></div>
+</div>
+<p>After registering on PyPI go to the URL:</p>
+<p><a class="reference external" href="https://pypi.python.org/pypi?%3Aaction=pkg_edit&amp;name=pyfits">https://pypi.python.org/pypi?%3Aaction=pkg_edit&amp;name=pyfits</a></p>
+<p>and mark any previous releases superceded by this release as hidden via the
+web UI.  Don&#8217;t check &#8220;Auto-hide old releases&#8221; as we want to support
+discovery of bugfix releases of older versions.</p>
+</li>
+<li><p class="first">When releasing a new major or minor version, create a bugfix branch for
+that version.  Starting from the tagged changset, just checkout a new
+branch and push it to the remote server.  For example, after releasing
+version 3.2.0, do:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git checkout -b 3.2-stable
+</pre></div>
+</div>
+<p>Then edit the setup.cfg so that the version is <tt class="docutils literal"><span class="pre">'3.2.1.dev'</span></tt>, and commit
+that change. Then, do:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git push origin +3.2-stable
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You may need to replace <tt class="docutils literal"><span class="pre">origin</span></tt> here with <tt class="docutils literal"><span class="pre">upstream</span></tt> or whatever
+remote name you use for the main PyFITS repository on GitHub.</p>
+</div>
+<p>The purpose of this branch is for creating bugfix releases like &#8220;3.2.1&#8221; and
+&#8220;3.2.2&#8221;, while allowing development of new features to continue in the
+master branch.  Only changesets that fix bugs without making significant
+API changes should be merged to the bugfix branches.</p>
+</li>
+<li><p class="first">On the other hand, if a bugfix release was made, the <tt class="docutils literal"><span class="pre">CHANGES.txt</span></tt> file
+will only be updated in the stable branch; the master branch also needs to
+be updated so that the release is reflected in its copy of <tt class="docutils literal"><span class="pre">CHANGES.txt</span></tt>.
+Just run:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git checkout master
+</pre></div>
+</div>
+<p>Say 3.2.1 was just released.  Use <tt class="docutils literal"><span class="pre">git</span> <span class="pre">log</span> <span class="pre">-p</span></tt> to find the commit
+that updated the changelog with the release date in the stable branch,
+like:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git log -p 3.2-stable
+</pre></div>
+</div>
+<p>Copy the commit hash, and then cherry-pick it into master:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git cherry-pick &lt;sha1 hash&gt;
+</pre></div>
+</div>
+<p>You will likely have to resolve a merge conflict, but just make sure that
+the section heading for the just released version is updated so that
+&#8220;(unreleased)&#8221; is replaced with today&#8217;s date.  Also ensure that a new
+section is added for the next bugfix release in that release series.</p>
+</li>
+<li><p class="first">Log into the Read the Docs control panel for PyFITS at
+<a class="reference external" href="https://readthedocs.org/projects/pyfits/">https://readthedocs.org/projects/pyfits/</a>.  Click on &#8220;Admin&#8221; and then
+&#8220;Versions&#8221;.  Find the just-released version (it might not appear for a few
+minutes) and click the check mark next to &#8220;Active&#8221; under that version.
+Leave the dropdown list on &#8220;Public&#8221;, then scroll to the bottom of the page
+and click &#8220;Submit&#8221;.  If this is the release with the highest version
+number, make sure to set it as the &#8220;default&#8221; version as soon as the build
+finishes.</p>
+<p>Note: When you first activate the new version in Read the Docs, it
+immediately displays a &#8220;Build Failed&#8221; message for the build of the new
+docs.  This is a bug&#8211;all it really means is that those docs have never
+been built yet.  Give it a few minutes before checking that the build
+succeeded.  Then you can set that version as the default if needed.</p>
+</li>
+<li><p class="first">We also mirror the most recent documentation at pythonhosted.org/pyfits (
+formerly packages.python.org).</p>
+<p>First it is necessary to build the docs manually.  Make sure all the
+dependencies are satisfied by running:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ pip install sphinx
+</pre></div>
+</div>
+<p>Then change directories into the docs/ directory and install the additional
+requirements for the docs:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cd docs
+$ pip install -r requirements.txt
+</pre></div>
+</div>
+<p>Then make the HTML docs:</p>
+<div class="highlight-python"><div class="highlight"><pre>make html
+</pre></div>
+</div>
+<p>Now change directories back to the source root and upload:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cd ..
+$ python setup.py upload_docs
+</pre></div>
+</div>
+</li>
+<li><p class="first">Mark the milestone of the released version as closed/completed in the
+PyFITS bug tracker(s).  If asked for a timestamp (as Trac does) use the
+timestamp of the git tag made for the release.</p>
+</li>
+<li><p class="first">Build and upload the Windows installers:</p>
+<ol class="loweralpha">
+<li><p class="first">Launch a MinGW shell.</p>
+</li>
+<li><p class="first">Just as before make sure you have a <tt class="docutils literal"><span class="pre">pypirc</span></tt> file in your home
+directory with your authentication info for PyPI.  On Windows the file
+should be called just <tt class="docutils literal"><span class="pre">pypirc</span></tt> without the leading <tt class="docutils literal"><span class="pre">.</span></tt> because
+having some consistency would make this too easy :)</p>
+</li>
+<li><p class="first">Do a <tt class="docutils literal"><span class="pre">git</span> <span class="pre">clone</span></tt> of the repository or, if you already have a clone
+of the repository do <tt class="docutils literal"><span class="pre">git</span> <span class="pre">fetch</span> <span class="pre">--tags</span></tt> to get the new tags.</p>
+</li>
+<li><p class="first">Check out the tag for the just released version.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git checkout v3.2.0
+</pre></div>
+</div>
+<p>(ignore the message about being in &#8220;detached HEAD&#8221; state).</p>
+</li>
+<li><p class="first">For each Python version installed, build with the mingw32 compiler,
+create the binary installer, and upload it.  It&#8217;s best to use the full
+path to each Python version to avoid ambiguity.  It is also best to
+clean the repository between builds for each version.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ /C/Python25/python setup.py build -c mingw32 bdist_wininst upload
+&lt; ... builds and uploads successfully ... &gt;
+$ git clean -dfx
+$ /C/Python26/python setup.py build -c mingw32 bdist_wininst upload
+&lt; ... builds and puloads successfully ... &gt;
+$ git clean -dfx
+$ &lt; ... and so on, for all currently supported Python versions ... &gt;
+</pre></div>
+</div>
+</li>
+</ol>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../appendix/appendix.html" title="Appendix"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../api_docs/api_verification.html" title="Verification options"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

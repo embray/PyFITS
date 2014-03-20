@@ -1,0 +1,973 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>FITS Header Schemas &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="up" title="PyFITS Users Guide" href="users_guide.html" />
+    <link rel="next" title="Executable Scripts" href="users_scripts.html" />
+    <link rel="prev" title="Less Familiar Objects" href="users_unfamiliar.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="users_scripts.html" title="Executable Scripts"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="users_unfamiliar.html" title="Less Familiar Objects"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" accesskey="U">PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">FITS Header Schemas</a><ul>
+<li><a class="reference internal" href="#enter-pyfits-schema">Enter <tt class="docutils literal"><span class="pre">pyfits.schema</span></tt></a></li>
+<li><a class="reference internal" href="#pyfits-schema-basics">PyFITS schema basics</a><ul>
+<li><a class="reference internal" href="#gotchas">Gotchas</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#using-callable-properties">Using callable properties</a></li>
+<li><a class="reference internal" href="#indexed-keywords">Indexed keywords</a><ul>
+<li><a class="reference internal" href="#multiple-indices">Multiple indices</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#schema-inheritance">Schema inheritance</a></li>
+<li><a class="reference internal" href="#supported-keyword-properties">Supported keyword properties</a><ul>
+<li><a class="reference internal" href="#mandatory">mandatory</a></li>
+<li><a class="reference internal" href="#valid">valid</a></li>
+<li><a class="reference internal" href="#position">position</a></li>
+<li><a class="reference internal" href="#value">value</a></li>
+<li><a class="reference internal" href="#indices">indices</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="users_unfamiliar.html"
+                        title="previous chapter">Less Familiar Objects</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="users_scripts.html"
+                        title="next chapter">Executable Scripts</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/users_guide/users_schema.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="fits-header-schemas">
+<span id="schemas"></span><h1>FITS Header Schemas<a class="headerlink" href="#fits-header-schemas" title="Permalink to this headline">¶</a></h1>
+<p>It is not uncommon in computing to define data structures to which one&#8217;s data
+must conform in order to meaningfully represent some data model of interest.
+A simple example of this is a &#8220;struct&#8221; in the C programming language:  It
+groups together a set of a data values in a specific order, and defines what
+types (as understood by the programming language) they may have.  In some ways
+a C struct imposes a very &#8220;loose&#8221; set of constraints on one&#8217;s data:  For
+example, it may require that one datum be a 32-bit integer, but it places no
+constraints beyond that on what values it may hold, or its relationship to
+other data in the structure (other than the relative order in which they are
+stored in memory).</p>
+<p>There are other data modeling languages, often designed around specific data
+storage formats, that enable stronger and more expressive constraints on one&#8217;s
+data.  This allows one to at least partially, if not fully define the semantics
+of one&#8217;s data and enables arbitrary data to be checked for conformance with
+those semantics.  By using a standardized data modeling language we can then
+write software <em>once</em> that can check arbitrary data against arbitrary sets of
+constraints.  Sometimes these languages are referred to as a &#8220;schema&#8221;, as in
+the case of <a class="reference external" href="http://en.wikipedia.org/wiki/XML_schema">XML Schema</a> or
+<a class="reference external" href="http://en.wikipedia.org/wiki/JSON_Schema#JSON_Schema">JSON Schema</a>.</p>
+<p>One of the major shortcoming of FITS, and as a result of the data structures
+for observations built around FITS, is the lack of any kind of data modeling
+and validation <em>language</em> for FITS.  Indeed, the FITS Standard itself lists the
+requirements of standard FITS headers in a combination of prose and tables that
+must be read and interpreted by a human any time one wants to write software
+that reads and writes valid FITS files.  That&#8217;s not to say that there
+<em>shouldn&#8217;t</em> be natural language explanations of the keywords expected to be
+found in a FITS header and of their semantics, but the lack of a <em>computer</em>
+readable set of rules for FITS headers leaves open the possibility for a great
+many mistakes when writing software that attempts to adhere to the FITS
+Standard.</p>
+<p>This incomplete approach has, as such, extended beyond the FITS Standard to
+usage conventions for specific observational products from different
+observatories and others who have modeled their data products around FITS.
+For example, while the various HST data handbooks contain tables listing the
+keywords that should be attached to different types of observations by
+different instruments, one has to read carefully through the documentation
+to determine the allowed ranges of values for many of those keywords.
+Furthermore, any time <em>anyone</em> wants to write software that works on those
+specific header conventions one has to hand-write code that validates the
+output products against those conventions.  It is all too easy for developers
+to make mistakes or miss specific requirements.  The situation becomes even
+worse when the semantics of the convention evolve, but the software does not.</p>
+<p>To be fair, there are limitations to the extent to which a simple schema format
+can assure the semantic validity of complex science data products.  Take for
+example the FITS WCS keywords: Say one takes an existing image that has been
+fully calibrated and rescales it.  There is only so much at that point that a
+schema for FITS could validate whether the coordinate transformations are still
+correct.  It <em>can</em>, however, ensure that all of the required keywords are
+present and have meaningful values (for example a transformation matrix element
+must be a real number, not a boolean).  Currently these kinds of checks must
+be implemented time and time again, and it is not usually clear from even
+visual inspection of one&#8217;s code whether all constraints of the data model are
+correctly adhered to and validated against.</p>
+<div class="section" id="enter-pyfits-schema">
+<h2>Enter <a class="reference internal" href="../api_docs/api_schema.html#module-pyfits.schema" title="pyfits.schema"><tt class="xref py py-obj docutils literal"><span class="pre">pyfits.schema</span></tt></a><a class="headerlink" href="#enter-pyfits-schema" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="../api_docs/api_schema.html#module-pyfits.schema" title="pyfits.schema"><tt class="xref py py-obj docutils literal"><span class="pre">pyfits.schema</span></tt></a> module introduced in PyFITS version 3.3.0 (tentative)
+attempts to partially solve this problem for data models designed around FITS.
+Although it is generally preferable to define a data modeling language in some
+programming language-independent &#8220;plain text&#8221; format (think for example an SQL
+database schema), this can place heavy limitations on the complexity of
+constraints one may define in a schema.  In order to fully capture the full set
+of rules some data must conform to, the data modeling language itself may need
+enough complexity and expressiveness to approach that of a programming
+language.</p>
+<p>As PyFITS itself is already written in Python, there is little gained from
+defining a complex new language for validating FITS headers.  Instead, PyFITS
+uses Python itself to implement most of the validation rules.  What the classes
+and functions in <a class="reference internal" href="../api_docs/api_schema.html#module-pyfits.schema" title="pyfits.schema"><tt class="xref py py-obj docutils literal"><span class="pre">pyfits.schema</span></tt></a> provide are simply a way to organize those
+rules into something resembling a &#8220;schema&#8221; for FITS headers.  It also provides
+a number of shortcuts for common types of validation (eg. &#8220;keyword <tt class="docutils literal"><span class="pre">OBSERVER</span></tt>
+must have a string value), and a way to extend existing schemas to define new
+ones.</p>
+<p>For example, PyFITS already provides schemas that can validate a FITS header
+against all the keywords defined by the FITS Standard.  For example,
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a> captures all the rules in the FITS Standard for headers
+describing an image (or n-dimensional array of any kind).  This includes all
+the rules for the <tt class="docutils literal"><span class="pre">NAXIS</span></tt>, <tt class="docutils literal"><span class="pre">NAXISn</span></tt>, <tt class="docutils literal"><span class="pre">BITPIX</span></tt>, <tt class="docutils literal"><span class="pre">DATAMIN</span></tt>, <tt class="docutils literal"><span class="pre">DATAMAX</span></tt>,
+and other keywords that are used to describe the array data (otherwise divorced
+from any description of what the data represents).  In order to define a schema
+for images taken from a specific telescope on instrument one might <em>extend</em>
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a> and include additional rules.  For example, all observations
+taken from the Hubble Space Telescope might require that the <tt class="docutils literal"><span class="pre">TELESCOP</span></tt>
+keyword have a value of <tt class="docutils literal"><span class="pre">'HST'</span></tt>.  Because these rules are defined using a
+general purpose programming language (Python) they may be arbitrarily complex.
+It is also possible (or will be possible in future versions) to pass
+additional context to the validation rules, such as the data arrays themselves,
+or the name of the file containing the header(s) being validated.</p>
+</div>
+<div class="section" id="pyfits-schema-basics">
+<h2>PyFITS schema basics<a class="headerlink" href="#pyfits-schema-basics" title="Permalink to this headline">¶</a></h2>
+<p>To define a schema using <a class="reference internal" href="../api_docs/api_schema.html#module-pyfits.schema" title="pyfits.schema"><tt class="xref py py-obj docutils literal"><span class="pre">pyfits.schema</span></tt></a> one must create a Python <em>class</em> that
+inherits from the class called simply <a class="reference internal" href="../api_docs/api_schema.html#pyfits.Schema" title="pyfits.Schema"><tt class="xref py py-obj docutils literal"><span class="pre">Schema</span></tt></a>.  For a good referesher
+on how to define a class in Python see the official <a class="reference external" href="http://docs.python.org/2/tutorial/classes.html">Python Tutorial</a>.</p>
+<p>A schema class <em>may</em> have methods defined on, but the primary contents of any
+schema class are one or more class <em>attributes</em> that take their name from FITS
+keywords that we expect to find in headers conforming to our schema.  In
+Python, a class attribute is just any variable (other than a method or
+function) that is defined at the class level.  The values of each of these
+so-called &#8220;keyword attributes&#8221; <em>must</em> be a Python <a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">dict</span></tt></a> object.  The keys of
+that <a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">dict</span></tt></a> represent &#8220;keyword properties&#8221;, that is, properties or rules
+defining the semantics of that keyword as it is used in that particular data
+model.</p>
+<p>To give a very basic example, one of the most common keyword properties is
+<a class="reference internal" href="#value">value</a>.  This defines the rules for the value that may be associated with
+that keyword.  Say we want to define a model where the keyword <tt class="docutils literal"><span class="pre">FOO</span></tt>, if it
+appears in a header, <em>must</em> have a character string value.  The schema for
+such a model (which we&#8217;re calling <tt class="docutils literal"><span class="pre">MySchema</span></tt>) looks like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pyfits</span> <span class="kn">import</span> <span class="n">Schema</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>And that&#8217;s it.  Again, this schema states that if a header contains a keyword
+named &#8220;FOO&#8221;, the value of that keyword must be a string.  We can now validate
+any FITS header (stored in a PyFITS <a class="reference internal" href="../api_docs/api_headers.html#pyfits.Header" title="pyfits.Header"><tt class="xref py py-obj docutils literal"><span class="pre">Header</span></tt></a> object) against this schema like
+so:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pyfits</span> <span class="kn">import</span> <span class="n">Header</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span> <span class="o">=</span> <span class="n">Header</span><span class="p">([(</span><span class="s">&#39;FOO&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span>  <span class="c"># Note that &#39;FOO&#39; is an *int*, not a string</span>
+<span class="go">FOO     =                    1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in MySchema:</span>
+<span class="go">keyword &#39;FOO&#39; is required to have a value of type &#39;str&#39;; got a value of</span>
+<span class="go">type &#39;int&#39; instead</span>
+</pre></div>
+</div>
+<p>This first example used a header that does <em>not</em> conform to the schema.  As the
+error message reads, <tt class="docutils literal"><span class="pre">FOO</span></tt> was required to be a string, but we gave it an
+integer value instead.  Testing against invalid headers is a good way to ensure
+that our schema is looking out for us.  We are free to correct the header and
+attempt validation a second time:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="p">[</span><span class="s">&#39;FOO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;abc&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span>
+<span class="go">FOO     = &#39;abc     &#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Currently <a class="reference internal" href="../api_docs/api_schema.html#pyfits.Schema.validate" title="pyfits.Schema.validate"><tt class="xref py py-obj docutils literal"><span class="pre">Schema.validate</span></tt></a> simply returns <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> if validation succeeds.</p>
+<p>Note also that we never created an <em>instance</em> of <tt class="docutils literal"><span class="pre">MySchema</span></tt>.  We just called
+<tt class="docutils literal"><span class="pre">.validate</span></tt> directly on the schema class itself.  This is an example of a
+Python <a class="reference external" href="http://docs.python.org/library/functions.html#classmethod" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">classmethod</span></tt></a>, and is the intended usage.  In general there is no reason
+to create specific instances of schema classes.  The class itself contains all
+the functionality we need.</p>
+<p>What if we want <tt class="docutils literal"><span class="pre">FOO</span></tt> to always have a <em>specific</em> value; not just be an
+arbitrary string.  This this case, rather than specifying <a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">str</span></tt></a> for the
+<tt class="docutils literal"><span class="pre">'value'</span></tt> property we specify the exact value you want it to have:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema2</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="s">&#39;on&#39;</span><span class="p">}</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema2</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in MySchema2:</span>
+<span class="go">keyword &#39;FOO&#39; is required to have the value &#39;on&#39;; got &#39;abc&#39; instead</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="p">[</span><span class="s">&#39;FOO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;on&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema2</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>We can also provide a list of allowed values like so:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema3</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;on&#39;</span><span class="p">,</span> <span class="s">&#39;off&#39;</span><span class="p">]}</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema3</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="p">[</span><span class="s">&#39;FOO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;off&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema3</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="p">[</span><span class="s">&#39;FOO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;abc&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema3</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in MySchema2:</span>
+<span class="go">keyword &#39;FOO&#39; is required to have the value of one of [&#39;on&#39;, &#39;off&#39;]; got</span>
+<span class="go">&#39;abc&#39; instead</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">For multiple value sets a Python <a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">list</span></tt></a> must be used.  A <a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">tuple</span></tt></a> has
+different semantics that will be discussed later.</p>
+</div>
+<p>Note also that the previous example schemas do not require a keyword called
+&#8220;FOO&#8221; to be present in the header.  They only require that <em>if</em> present it
+meets the prescribed rules.  In order to <em>require</em> a keyword to be present,
+simply use the <a class="reference internal" href="#mandatory">mandatory</a> property with a value of <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema4</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">...</span>
+<span class="go">    &gt;&gt;&gt; hdr = Header([(&#39;ZAPHOD&#39;, 1), (&#39;FORD&#39;, 2)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in MySchema4:</span>
+<span class="go">mandatory keyword &#39;FOO&#39; missing from header</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="p">[</span><span class="s">&#39;FOO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;abc&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>There also exists a <a class="reference internal" href="#valid">valid</a> property.  This is in some ways the inverse of
+<tt class="docutils literal"><span class="pre">'mandatory'</span></tt>:  By default all keywords are &#8220;valid&#8221; (<tt class="docutils literal"><span class="pre">'valid':</span> <span class="pre">True</span></tt>), but
+if a keyword is marked as <tt class="docutils literal"><span class="pre">'valid':</span> <span class="pre">False</span></tt> it is <em>invalid</em> for that keyword
+to appear in headers using this schema.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema5</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;valid&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">}</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span> <span class="o">=</span> <span class="n">Header</span><span class="p">([(</span><span class="s">&#39;FOO&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;BAR&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema5</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in MySchema5:</span>
+<span class="go">keyword &#39;FOO&#39; is invalid in this header</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">hdr</span><span class="p">[</span><span class="s">&#39;FOO&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema5</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>For many FITS keywords it&#8217;s enough to set them as mandatory or optional (the
+default).  But in some cases we also want some keywords to be present in a
+header in a <em>specific</em> order.  To give a familiar example, the first keyword of
+any conforming FITS primary header must be &#8220;SIMPLE&#8221; (and it must have a value
+of <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a>).  The second keyword must always be &#8220;BITPIX&#8221; (with an integer value
+of one of -64, -32, 8, 16, 32, or 64).  We use the <a class="reference internal" href="#position">position</a> property to
+define rules for keyword order.  The simplest use of the <tt class="docutils literal"><span class="pre">'position'</span></tt>
+property is to hard-code the exact index into the header a keyword must have.</p>
+<p>Remember, Python is zero-indexed, which means the <em>first</em> keyword has an index
+of zero.  A schema encoding the rules given in the previous paragraph for
+&#8220;SIMPLE&#8221; and &#8220;BITPIX&#8221; might look like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">PrimaryHeaderSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">SIMPLE</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&#39;position&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="n">BITPIX</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">64</span><span class="p">,</span> <span class="o">-</span><span class="mi">32</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">],</span>
+<span class="gp">... </span>        <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s">&#39;position&#39;</span><span class="p">:</span> <span class="mi">1</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span> <span class="o">=</span> <span class="n">Header</span><span class="p">([(</span><span class="s">&#39;BITPIX&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;SIMPLE&#39;</span><span class="p">,</span> <span class="bp">True</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span>
+<span class="go">BITPIX  =                   16</span>
+<span class="go">SIMPLE  =                    T</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">PrimaryHeaderSchema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in</span>
+<span class="go">PrimaryHeaderSchema: keyword &#39;SIMPLE&#39; is required to have position 0 in the</span>
+<span class="go">header; instead it was found in position 1 (note: position is zero-indexed)</span>
+</pre></div>
+</div>
+<p>(Note: This only reported <tt class="docutils literal"><span class="pre">SIMPLE</span></tt> as out of place.  In a future version it
+will be possible to report all schema violations with a single
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.Schema.validate" title="pyfits.Schema.validate"><tt class="xref py py-obj docutils literal"><span class="pre">Schema.validate</span></tt></a> call.)</p>
+<p>Now we can fix the header and try validating again:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;SIMPLE&#39;</span><span class="p">,</span> <span class="n">before</span><span class="o">=</span><span class="s">&#39;BITPIX&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span>
+<span class="go">SIMPLE  =                    T</span>
+<span class="go">BITPIX  =                   16</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">PrimaryHeaderSchema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Of course this is only the tip of the iceberg of the full set rules for a FITS
+primary header.  Fortunately a schema defining all the rules already comes with
+PyFITS (see <a class="reference internal" href="../api_docs/api_schema.html#pyfits.PrimarySchema" title="pyfits.PrimarySchema"><tt class="xref py py-obj docutils literal"><span class="pre">PrimarySchema</span></tt></a>).</p>
+<div class="section" id="gotchas">
+<h3>Gotchas<a class="headerlink" href="#gotchas" title="Permalink to this headline">¶</a></h3>
+<p>Since the PyFITS schema format actually uses Python syntax to define a schema,
+keywords listed in that schema must be valid Python identifiers.  For most
+keywords this is not a problem:  The valid characters included uppercase &#8216;A&#8217;
+through &#8216;Z&#8217;, the digits 0-9, and the underscore.  However, it also includes
+the hyphen, &#8216;-&#8216;, which is <em>not</em> a valid character in Python identifiers.  A
+common example of this is <tt class="docutils literal"><span class="pre">DATE-OBS</span></tt>.  There is an alternate means of
+specifying keywords in a schema that works around this problem:  All <a class="reference internal" href="../api_docs/api_schema.html#pyfits.Schema" title="pyfits.Schema"><tt class="xref py py-obj docutils literal"><span class="pre">Schema</span></tt></a>
+classes recognized a class attribute called simply <tt class="docutils literal"><span class="pre">keywords</span></tt> (all lowercase)
+that contains a dictionary mapping keyword names to the rules for that keyword.</p>
+<p>For example,</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">ExampleSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">keywords</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;FOO&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>is equivalent to</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">ExampleSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>In most cases the latter, attribute-based, listing of keywords is simply a bit
+more convenient.  The two formats can also be used simultaneously.  This is how
+one might support <tt class="docutils literal"><span class="pre">DATE-OBS</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">ExampleSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="n">keywords</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;DATE-OBS&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>In this case <tt class="docutils literal"><span class="pre">keywords</span></tt> should really be read as &#8220;additional keywords&#8221;.</p>
+<p>In fact, even if the <tt class="docutils literal"><span class="pre">keywords</span></tt> attribute isn&#8217;t specified explicitly, <em>all</em>
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.Schema" title="pyfits.Schema"><tt class="xref py py-obj docutils literal"><span class="pre">Schema</span></tt></a> classes automatically have a <tt class="docutils literal"><span class="pre">keywords</span></tt> attribute listing the
+keywords defined by that schema.  From the above example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">ExampleSchema</span><span class="o">.</span><span class="n">keywords</span>
+<span class="go">{&#39;DATE-OBS&#39;: {&#39;value&#39;: True}, &#39;FOO&#39;: {&#39;mandatory&#39;: True}}</span>
+</pre></div>
+</div>
+<p>One can see that <tt class="docutils literal"><span class="pre">'FOO'</span></tt> was added to the <tt class="docutils literal"><span class="pre">.keywords</span></tt> <a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">dict</span></tt></a> along with
+<tt class="docutils literal"><span class="pre">'DATE-OBS'</span></tt> (which was included explicitly).  This can be used to introspect
+the keywords defined on a given schema without having to manually look through
+all of its class attributes.</p>
+</div>
+</div>
+<div class="section" id="using-callable-properties">
+<h2>Using callable properties<a class="headerlink" href="#using-callable-properties" title="Permalink to this headline">¶</a></h2>
+<p>We have seen how to require a specific absolute position at which a keyword
+must be placed in a header by using the <tt class="docutils literal"><span class="pre">'position'</span></tt> property.  But what if
+we don&#8217;t care about the absolute position but rather the position relative to
+another keyword.  For example: The keywords <tt class="docutils literal"><span class="pre">TELESCOP</span></tt> and <tt class="docutils literal"><span class="pre">INSTRUME</span></tt>
+(FITSisms for &#8220;telescope&#8221; and &#8220;instrument&#8221;) as defined by the FITS standard do
+<em>not</em> have required positions.  But say, as a matter of convention, for the
+sake of consistency we want all files output by our pipeline to place the
+<tt class="docutils literal"><span class="pre">INSTRUME</span></tt> keyword immediately <em>after</em> <tt class="docutils literal"><span class="pre">TELESCOP</span></tt>.  Conventions like this
+are useful for users visually inspecting headers&#8211;having keywords in a
+consistent order means less visual overhead in searching a long header for
+them.</p>
+<p><em>Currently</em> PyFITS schema does not define any keyword properties that
+explicitly define such a rule (though we could add them if it turns out to be
+a very common case).  Instead, rather than supplying an exact integer value to
+<tt class="docutils literal"><span class="pre">'position'</span></tt> we can supply a <em>function</em> (or often a <tt class="docutils literal"><span class="pre">lambda</span></tt> as a shortcut)
+that computes what index <tt class="docutils literal"><span class="pre">INSTRUME</span></tt> <em>should</em> have if it is to come after
+<tt class="docutils literal"><span class="pre">TELESCOP</span></tt>.  To do this, the function would need access to the actual header
+being validated, and it would need to be able to look up the index of the
+<tt class="docutils literal"><span class="pre">TELESCOP</span></tt> keyword.  This could be implemented something like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema6</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">TELESCOP</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="n">INSTRUME</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s">&#39;position&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;header&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s">&#39;TELESCOP&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span> <span class="o">=</span> <span class="n">Header</span><span class="p">([(</span><span class="s">&#39;TELESCOP&#39;</span><span class="p">,</span> <span class="s">&#39;HST&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;FOO&#39;</span><span class="p">,</span> <span class="s">&#39;abc&#39;</span><span class="p">),</span>
+<span class="gp">... </span>              <span class="p">(</span><span class="s">&#39;INSTRUME&#39;</span><span class="p">,</span> <span class="s">&#39;ACS&#39;</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span>
+<span class="go">TELESCOP= &#39;HST     &#39;</span>
+<span class="go">FOO     = &#39;abc     &#39;</span>
+<span class="go">INSTRUME= &#39;ACS     &#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema6</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">pyfits.schema.SchemaValidationError</span>: <span class="n">SchemaValidationError in MySchema6:</span>
+<span class="go">keyword &#39;INSTRUME&#39; is required to have position 1 in the header; instead it</span>
+<span class="go">was found in position 2 (note: position is zero-indexed)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;INSTRUME&#39;</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="s">&#39;TELESCOP&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">hdr</span>
+<span class="go">TELESCOP= &#39;HST     &#39;</span>
+<span class="go">INSTRUME= &#39;ACS     &#39;</span>
+<span class="go">FOO     = &#39;abc     &#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">MySchema6</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Admittedly a more useful error message here might explicitly state that
+<tt class="docutils literal"><span class="pre">INSTRUME</span></tt> belongs after <tt class="docutils literal"><span class="pre">TELESCOP</span></tt>.  There is no good way for the
+software to parse that meaning out of the validation function, but it
+remains a todo item to add custom error messages to the schema.  This would
+have the added advantage of documenting the intent of the schema.</p>
+</div>
+<p>The <tt class="docutils literal"><span class="pre">'position'</span></tt> property in the previous example deserves further
+explanation.  Although a <tt class="docutils literal"><span class="pre">lambda</span></tt> was used, any callable (that is, anything
+that acts <em>like</em> a function) will work.  The only requirement at the moment is
+that it take arbitrary keyword arguments using the <tt class="docutils literal"><span class="pre">**kwargs</span></tt> syntax, and no
+positional arguments.  By convention, instead of <tt class="docutils literal"><span class="pre">kwargs</span></tt> the name <tt class="docutils literal"><span class="pre">ctx</span></tt> is
+used.  This is short for &#8220;context&#8221;, as in, the context in which this keyword is
+being validated.</p>
+<p>The reason this is kept very flexible is so that additional context variables
+may be added later on without requiring all existing validation functions to
+be rewritten.  They can simply ignore any new context that may be added.</p>
+<p>The most common example of context given to a callable property is the actual
+header in the process of being validated.  This is passed in as the <tt class="docutils literal"><span class="pre">header</span></tt>
+keyword argument, so it can be accessed via <tt class="docutils literal"><span class="pre">ctx['header']</span></tt>.  This usage is
+seen in the previous example where we use <tt class="docutils literal"><span class="pre">ctx['header']</span></tt> to look up the
+index of the <tt class="docutils literal"><span class="pre">TELESCOP</span></tt> keyword.  We then return that index incremented by
+one, giving the index at which the <tt class="docutils literal"><span class="pre">INSTRUME</span></tt> keyword <em>should</em> appear.  In
+that example <tt class="docutils literal"><span class="pre">ctx['header'].index('TELESCOP')</span></tt> returns <tt class="docutils literal"><span class="pre">0</span></tt> (it is the first
+keyword).  So this ends up being equivalent to if we had written <tt class="docutils literal"><span class="pre">'position':</span>
+<span class="pre">1</span></tt> for <tt class="docutils literal"><span class="pre">INSTRUME</span></tt>.  The difference being that <tt class="docutils literal"><span class="pre">1</span></tt> is not
+hard-coded&#8211;instead it is dependent on the individual header being validated.</p>
+<p>Another very common usage of callable properties is validation of keyword
+values.  By writing the validation rules for values in Python they may be
+arbitrarily complex.  For example, in order to write a rule that a value
+is greater than zero we can write:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema6</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>Here the actual value of the <tt class="docutils literal"><span class="pre">FOO</span></tt> keyword being validated is passed in as
+the <tt class="docutils literal"><span class="pre">value</span></tt> context variable.  If the callable returns <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> the value is
+considered valid.  But what if we also want to ensure that the value is an
+<em>integer</em> (as opposed to, say, a floating point value).  We already saw that we
+can do type checking like <tt class="docutils literal"><span class="pre">FOO</span> <span class="pre">=</span> <span class="pre">{'value':</span> <span class="pre">int}</span></tt>.  But we can also combine
+the two checks in a <a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">tuple</span></tt></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MySchema7</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">FOO</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>This will first ensure that the value is <em>strictly</em> an integer.  <em>Then</em> runs
+the callable to ensure that the value is greater than zero.  Any number of
+value tests can be conjoined as a tuple.</p>
+<p>Most keyword properties like <tt class="docutils literal"><span class="pre">'value'</span></tt> and <tt class="docutils literal"><span class="pre">'position'</span></tt> accept callables
+that can implement context-dependent rules for that keyword.  The exact
+semantics of those callables, such as what context is provided and what return
+values are expected are described in the full documentation for <a class="reference external" href="#supported-keyword-properties">individual
+properties</a>.</p>
+</div>
+<div class="section" id="indexed-keywords">
+<h2>Indexed keywords<a class="headerlink" href="#indexed-keywords" title="Permalink to this headline">¶</a></h2>
+<p>One of the unique issues of designing a schema format for FITS is the common
+use of sequences of indexed keywords that share a common prefix and the same
+semantics.  Because a single FITS keyword can only store scalar values, it is
+necessary to use a scheme involving a prefix followed by a numerical (or
+in some cases even alphabetical) index in order to store the elements of
+compound values.</p>
+<p>The most common and familiar example of this by far is the <tt class="docutils literal"><span class="pre">NAXISn</span></tt>
+keywords&#8211; <tt class="docutils literal"><span class="pre">NAXIS1</span></tt>, <tt class="docutils literal"><span class="pre">NAXIS2</span></tt>, ..., <tt class="docutils literal"><span class="pre">NAXISn</span></tt> where <tt class="docutils literal"><span class="pre">n</span></tt> is the value of
+the <tt class="docutils literal"><span class="pre">NAXIS</span></tt> keyword and may be from 1 through 99.  In principle this could be
+handled by manually listing out all possible <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords in the schema,
+but this is cumbersome to write, cumbersome to read, and error-prone.</p>
+<p>In order to provide an interface for keywords like these that translates
+easily from the FITS Standard and other FITS conventions, the PyFITS schema
+interface allows defining a sort of &#8220;keyword template&#8221; where specific
+characters in the keyword are designated as placeholders that will later be
+interpolated with an index value.  How this works is easier to explain with an
+example.  One might implement a schema for the <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords like so:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">NaxisSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">NAXISn</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">),</span>
+<span class="gp">... </span>        <span class="s">&#39;indices&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;n&#39;</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">100</span><span class="p">)}</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>Here the <tt class="docutils literal"><span class="pre">'value'</span></tt> property expresess that <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords should have
+non-negative integer values.  More interesting here is the new <a class="reference internal" href="#indices">indices</a>
+property:  This expresses which characters in the keyword should be replaced
+with index values.  In this example the character <tt class="docutils literal"><span class="pre">'n'</span></tt> should be
+replaced with the values in the range 1 through 99.  Two things should be
+pointed out about this:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>Keywords listed in the schema are case-sensitive:  &#8220;NAXISn&#8221; contains an
+uppercase &#8220;N&#8221; and a lowercase &#8220;n&#8221;, but only the lowercase &#8220;n&#8221; is treated
+as the index placeholder.</li>
+<li>The range of allowed index values is given as the integers 1 through 99,
+but keyword names are always strings.  When interpolating the possible
+index values those values are automatically converted to strings via their
+<tt class="docutils literal"><span class="pre">__str__</span></tt> method.  The most common case here is integers, so this just
+automatically converts integer values to their string representations.</li>
+</ol>
+</div></blockquote>
+<p>In practice, the above example works exactly the same as a schema in which all
+99 possible <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords were written out one by one:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">NaxisSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">NAXIS1</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)}</span>
+<span class="gp">... </span>    <span class="n">NAXIS2</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)}</span>
+<span class="gp">... </span>    <span class="c"># .. and so on up to</span>
+<span class="gp">... </span>    <span class="n">NAXIS99</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>At this point, the reader might noticed that the last example is still not a
+complete schema for the <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords in a standard FITS header.  If a
+header has, for example, <tt class="docutils literal"><span class="pre">NAXIS</span> <span class="pre">=</span> <span class="pre">2</span></tt>, then it <em>must</em> have an <tt class="docutils literal"><span class="pre">NAXIS1</span></tt>
+keyword and an <tt class="docutils literal"><span class="pre">NAXIS2</span></tt> keyword and any other <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords are in
+fact invalid.  One could use a context-based callable to define the allowed
+range of <tt class="docutils literal"><span class="pre">NAXISn</span></tt> keywords like so:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">NaxisSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">NAXISn</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">),</span>
+<span class="gp">... </span>        <span class="s">&#39;indices&#39;</span><span class="p">:</span> <span class="p">{</span>
+<span class="gp">... </span>            <span class="s">&#39;n&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;header&#39;</span><span class="p">][</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="p">},</span>
+<span class="gp">... </span>        <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>In this example a <em>function</em> is used to determine the range of indices allowed
+for <tt class="docutils literal"><span class="pre">NAXISn</span></tt> based on the value of the header&#8217;s <tt class="docutils literal"><span class="pre">NAXIS</span></tt> keyword.  If
+validating a header in which <tt class="docutils literal"><span class="pre">NAXIS</span> <span class="pre">=</span> <span class="pre">2</span></tt> this will make <tt class="docutils literal"><span class="pre">NAXIS1</span></tt> and
+<tt class="docutils literal"><span class="pre">NAXIS2</span></tt> mandatory and validate that they are non-negative integers.  This is
+still not as strong as it could be, in that it <em>allows</em> keywords with <tt class="docutils literal"><span class="pre">n</span> <span class="pre">&gt;</span> <span class="pre">2</span></tt>
+such as <tt class="docutils literal"><span class="pre">NAXIS3</span></tt> and above.  But they are simply ignored&#8211;treated as
+non-meaningful to the schema.  Once could make a strong schema that outright
+disallows them:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">NaxisSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">NAXISn</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">),</span>
+<span class="gp">... </span>        <span class="s">&#39;indices&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;n&#39;</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">100</span><span class="p">)}</span>
+<span class="gp">... </span>        <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> \
+<span class="gp">... </span>            <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;header&#39;</span><span class="p">][</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;n&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;n&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;header&#39;</span><span class="p">][</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>This last example deserves some unpacking:  Now were are again checking all
+possible indices from 1 to 99.  If the index is between 1 and the value of
+<tt class="docutils literal"><span class="pre">NAXIS</span></tt> it is mandatory.  If the index is greated than <tt class="docutils literal"><span class="pre">NAXIS</span></tt> then that
+keyword is invalid.  The index of a given keyword is passed to the
+<tt class="docutils literal"><span class="pre">'mandatory'</span></tt> and <tt class="docutils literal"><span class="pre">'invalid'</span></tt> functions in the context dict as <tt class="docutils literal"><span class="pre">'n'</span></tt>.</p>
+<p>For example, consider the header:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">NAXIS</span>   <span class="o">=</span>                    <span class="mi">2</span>
+<span class="n">NAXIS1</span>  <span class="o">=</span>                  <span class="mi">100</span>
+<span class="n">NAXIS2</span>  <span class="o">=</span>                  <span class="mi">100</span>
+</pre></div>
+</div>
+<p>When evaluating this header against the above schema, all keywords <tt class="docutils literal"><span class="pre">NAXIS1</span></tt>
+through <tt class="docutils literal"><span class="pre">NAXIS99</span></tt> are looped over and the functions for <tt class="docutils literal"><span class="pre">'mandatory'</span></tt> and
+<tt class="docutils literal"><span class="pre">'invalid'</span></tt> are evaluated for that keyword.  For <tt class="docutils literal"><span class="pre">NAXIS1</span></tt>, where <tt class="docutils literal"><span class="pre">n</span> <span class="pre">=</span> <span class="pre">1</span></tt>,
+<tt class="docutils literal"><span class="pre">'mandatory'</span></tt> returns <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> and <tt class="docutils literal"><span class="pre">'invalid'</span></tt> returns <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a>.  Likewise
+for <tt class="docutils literal"><span class="pre">NAXIS2</span></tt>.  But for <tt class="docutils literal"><span class="pre">NAXIS3</span></tt> and above <tt class="docutils literal"><span class="pre">'mandatory'</span></tt> returns <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a>
+and the <tt class="docutils literal"><span class="pre">'invalid'</span></tt> function returns <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a>.  If any of those keywords appear
+in the header it will fail validation.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">In the future it might be worth adding a means of marking some rules so
+that they return warnings rather than outright invalidate the header.</p>
+</div>
+<div class="section" id="multiple-indices">
+<h3>Multiple indices<a class="headerlink" href="#multiple-indices" title="Permalink to this headline">¶</a></h3>
+<p>Part of the complexity (or if you prefer &#8220;flexibility&#8221;) of the <tt class="docutils literal"><span class="pre">'indices'</span></tt>
+property comes from its support for keywords containing multiple indices.  One
+of the most common examples of this is the <tt class="docutils literal"><span class="pre">CDi_j</span></tt> keywords used to represent
+elements of the transformation matrix used in the FITS WCS convention.  Here
+there are two indices, <tt class="docutils literal"><span class="pre">i</span></tt> and <tt class="docutils literal"><span class="pre">j</span></tt>.  This can be implemented in a PyFITS
+schema like:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">WcsSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">CDi_j</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s">&#39;indices&#39;</span><span class="p">:</span> <span class="p">{</span>
+<span class="gp">... </span>            <span class="s">&#39;i&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">WcsSchema</span><span class="o">.</span><span class="n">wcs_range</span><span class="p">(</span><span class="o">**</span><span class="n">ctx</span><span class="p">),</span>
+<span class="gp">... </span>            <span class="s">&#39;j&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;header&#39;</span><span class="p">][</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="p">}</span>
+<span class="gp">... </span>   <span class="p">}</span>
+<span class="gp">...</span>
+<span class="gp">... </span>   <span class="nd">@staticmethod</span>
+<span class="gp">... </span>   <span class="k">def</span> <span class="nf">wcs_range</span><span class="p">(</span><span class="n">header</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">ctx</span><span class="p">):</span>
+<span class="gp">... </span>       <span class="k">return</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">header</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;WCSAXES&#39;</span><span class="p">,</span> <span class="n">header</span><span class="p">[</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]))</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>In this example the allowed range <tt class="docutils literal"><span class="pre">'j'</span></tt> index (the number of pixel
+coordinates) is determined from the headers <tt class="docutils literal"><span class="pre">NAXIS</span></tt> keyword.  The allowed
+range for <tt class="docutils literal"><span class="pre">'i'</span></tt> (the number of WCS coordinates) is determined from
+<tt class="docutils literal"><span class="pre">WCSAXES</span></tt> if it exists, and otherwise falls back on <tt class="docutils literal"><span class="pre">NAXIS</span></tt>.  This time
+the range function for <tt class="docutils literal"><span class="pre">'i'</span></tt> was defined in a separate staticmethod rather
+than in-line for clarity&#8217;s sake.  This also allows it to be reused in the
+rules for other keywords, such as <tt class="docutils literal"><span class="pre">CTYPEi</span></tt>.</p>
+<p>This schema will check keywords in the <tt class="docutils literal"><span class="pre">CDi_j</span></tt> format over the Cartesian
+product of the ranges for those indices.  For example if <tt class="docutils literal"><span class="pre">NAXIS</span> <span class="pre">=</span> <span class="pre">2</span></tt> this
+schema will check for all of <tt class="docutils literal"><span class="pre">CD1_1</span></tt>, <tt class="docutils literal"><span class="pre">CD1_2</span></tt>, <tt class="docutils literal"><span class="pre">CD2_1</span></tt>, and <tt class="docutils literal"><span class="pre">CD2_2</span></tt>.
+This is a rough implementation of the rules for this keyword; a fully-compliant
+implementation is a bit more complex.  One modification we would need to make,
+for example, is support for multiple WCS transformations.  This is an example
+where the range of values are not integers:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">BaseWCSSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="c"># &#39;A&#39;-&#39;Z&#39; including blank</span>
+<span class="gp">... </span>    <span class="n">coordinate_versions</span> <span class="o">=</span> \
+<span class="gp">... </span>        <span class="p">[</span><span class="s">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="nb">chr</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">ord</span><span class="p">(</span><span class="s">&#39;A&#39;</span><span class="p">),</span> <span class="nb">ord</span><span class="p">(</span><span class="s">&#39;Z&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+<span class="gp">...</span>
+<span class="gp">... </span>    <span class="n">CDi_ja</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="s">&#39;indices&#39;</span><span class="p">:</span> <span class="p">{</span>
+<span class="gp">... </span>            <span class="s">&#39;i&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="n">WcsSchema</span><span class="o">.</span><span class="n">wcs_range</span><span class="p">(</span><span class="o">**</span><span class="n">ctx</span><span class="p">),</span>
+<span class="gp">... </span>            <span class="s">&#39;j&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">ctx</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ctx</span><span class="p">[</span><span class="s">&#39;header&#39;</span><span class="p">][</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+<span class="gp">... </span>            <span class="s">&#39;a&#39;</span><span class="p">:</span> <span class="n">coordinate_versions</span>
+<span class="gp">... </span>        <span class="p">}</span>
+<span class="gp">... </span>   <span class="p">}</span>
+<span class="gp">...</span>
+<span class="gp">... </span>   <span class="nd">@staticmethod</span>
+<span class="gp">... </span>   <span class="k">def</span> <span class="nf">wcs_range</span><span class="p">(</span><span class="n">header</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">ctx</span><span class="p">):</span>
+<span class="gp">... </span>       <span class="k">return</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">header</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;WCSAXES&#39;</span><span class="p">,</span> <span class="n">header</span><span class="p">[</span><span class="s">&#39;NAXIS&#39;</span><span class="p">]))</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>This is still a rough example, but might be the basic approach in writing a
+schema for FITS WCS.  But even in the case of complex rules such as these, the
+author posits that such a schema still provides a more concise and cogent
+description of the rules for these keywords than ad-hoc code might.  Future
+enhancements to the schema format may further simplify definition of complex
+patterns of rules that appear commonly in FITS-based conventions.</p>
+</div>
+</div>
+<div class="section" id="schema-inheritance">
+<h2>Schema inheritance<a class="headerlink" href="#schema-inheritance" title="Permalink to this headline">¶</a></h2>
+<p>Some of the greatest power of PyFITS schemas is their extensibility.  PyFITS
+includes built-in schemas for all of the basic data types supported by the FITS
+standard&#8211;particularly image arrays.  This schema includes all the rules for
+keywords like <tt class="docutils literal"><span class="pre">NAXIS</span></tt> and <tt class="docutils literal"><span class="pre">BITPIX</span></tt> as well as standard metadata such as
+<tt class="docutils literal"><span class="pre">DATE-OBS</span></tt>.  When developing a schema with which to check correctness of
+describing observations made with a specific instrument one might start with
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a> which describes headers for all FITS standard array-like
+data (whether in the primary HDU or an extension).  Basic extension to PyFITS
+schemas works through Python class inheritance.  So to add rules for
+additional keywords to <a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a> one simply subclasses it.  For
+example, a general schema for ACS headers might start out something like:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">BaseACSImageSchema</span><span class="p">(</span><span class="n">pyfits</span><span class="o">.</span><span class="n">BaseArraySchema</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">TELESCOP</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="s">&#39;HST&#39;</span><span class="p">,</span> <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="n">INSTRUME</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="s">&#39;ACS&#39;</span><span class="p">,</span> <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="n">OBSTYPE</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>        <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;IMAGING&#39;</span><span class="p">,</span> <span class="s">&#39;SPECTROSCOPIC&#39;</span><span class="p">,</span> <span class="s">&#39;CORONAGRAPHIC&#39;</span><span class="p">],</span>
+<span class="gp">... </span>        <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span>
+<span class="gp">... </span>    <span class="p">}</span>
+<span class="gp">... </span>    <span class="n">DETECTOR</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;WCF&#39;</span><span class="p">,</span> <span class="s">&#39;HRC&#39;</span><span class="p">,</span> <span class="s">&#39;SBC&#39;</span><span class="p">],</span> <span class="s">&#39;mandatory&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}</span>
+<span class="gp">...</span>
+</pre></div>
+</div>
+<p>These are just a small set of the keywords one would define rules for in this
+case, but they would fairly uniquely identify a given header as belonging to
+an ACS observation.  The first thing to note about this example is that the
+<tt class="docutils literal"><span class="pre">TELESCOP</span></tt> and <tt class="docutils literal"><span class="pre">INSTRUME</span></tt> keywords are not unique to ACS&#8211;these are
+keywords defined by the FITS standard, and are indeed part of the basic
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">pyfits</span><span class="o">.</span><span class="n">BaseArraySchema</span><span class="o">.</span><span class="n">TELESCOP</span>
+<span class="go">{&#39;value&#39;: str}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pyfits</span><span class="o">.</span><span class="n">BaseArraySchema</span><span class="o">.</span><span class="n">INSTRUME</span>
+<span class="go">{&#39;value&#39;: str}</span>
+</pre></div>
+</div>
+<p>However, their definitions are very loose&#8211;they are entirely optional, and the
+only rule for them is that their value contains a string.  The
+<tt class="docutils literal"><span class="pre">BaseACSImageSchema</span></tt> we defined above overrides these rules by adding that
+the keyword is mandatory, and restricting the exact values that the keywords
+may have.</p>
+<p><tt class="docutils literal"><span class="pre">OBSTYPE</span></tt> and <tt class="docutils literal"><span class="pre">DETECTOR</span></tt> on the other hand are not mentioned by the FITS
+standard and are entirely unique to this extension schema.</p>
+<p>An extension schema may also extend/inherit from multiple base schemas
+following Python&#8217;s standard multiple-inheritance rules.  For example, the
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.PrimaryArraySchema" title="pyfits.PrimaryArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">PrimaryArraySchema</span></tt></a> is composed from <a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a> and <a class="reference internal" href="../api_docs/api_schema.html#pyfits.PrimarySchema" title="pyfits.PrimarySchema"><tt class="xref py py-obj docutils literal"><span class="pre">PrimarySchema</span></tt></a>
+(where the latter is a schema that matches all FITS primary HDUs (i.e. where
+the first keyword is <tt class="docutils literal"><span class="pre">SIMPLE</span> <span class="pre">=</span> <span class="pre">T</span></tt>).  <a class="reference internal" href="../api_docs/api_schema.html#pyfits.PrimaryArraySchema" title="pyfits.PrimaryArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">PrimaryArraySchema</span></tt></a> gets most of its
+rules first from <a class="reference internal" href="../api_docs/api_schema.html#pyfits.BaseArraySchema" title="pyfits.BaseArraySchema"><tt class="xref py py-obj docutils literal"><span class="pre">BaseArraySchema</span></tt></a>, but then adds some additional rules (for
+the <tt class="docutils literal"><span class="pre">SIMPLE</span></tt>, <tt class="docutils literal"><span class="pre">EXTEND</span></tt>, and <tt class="docutils literal"><span class="pre">BLOCKED</span></tt> keywords) from <a class="reference internal" href="../api_docs/api_schema.html#pyfits.PrimarySchema" title="pyfits.PrimarySchema"><tt class="xref py py-obj docutils literal"><span class="pre">PrimarySchema</span></tt></a>.</p>
+<p>Another possible use case is &#8220;mixin&#8221; schemas that add support for additional
+keywords defined by a particular convention.  For example the included
+<a class="reference internal" href="../api_docs/api_schema.html#pyfits.ChecksumSchema" title="pyfits.ChecksumSchema"><tt class="xref py py-obj docutils literal"><span class="pre">ChecksumSchema</span></tt></a> provides validation for the <tt class="docutils literal"><span class="pre">DATASUM</span></tt> and <tt class="docutils literal"><span class="pre">CHECKSUM</span></tt>
+keywords defined by the <a class="reference external" href="http://fits.gsfc.nasa.gov/registry/checksum.html">FITS Checksum</a>
+convention.  As PyFITS supports this convention it mixes this schema into
+the basic schemas for valid FITS headers, but still keeps it logically as an
+independent schema, clarifying that it is a separate convention and not
+part of the FITS standard.</p>
+</div>
+<div class="section" id="supported-keyword-properties">
+<h2>Supported keyword properties<a class="headerlink" href="#supported-keyword-properties" title="Permalink to this headline">¶</a></h2>
+<p>This section lists all presently supported keyword properties and their allowed
+values.  This is likely to change as the feature is used more and the set of
+required use cases becomes clearer.  In particular, it is likely to grow as
+shortcuts are added for common use cases.</p>
+<div class="section" id="mandatory">
+<h3>mandatory<a class="headerlink" href="#mandatory" title="Permalink to this headline">¶</a></h3>
+<p>This property indicates that the presence of a keyword is <em>required</em> in a
+header in order for that header to be valid under the current schema.  By
+default no keywords are mandatory&#8211;this property must be explicitly set to
+<a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a>.</p>
+<p>Allowed values: <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>, callable</p>
+<blockquote>
+<div><ul class="simple">
+<li>If given a <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>, a value of <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> means the keyword is mandatory, and a
+value of <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a> means the keyword is not mandatory (it is optional)</li>
+<li>If given a callable, that callable <em>must</em> return a <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a> to be interpreted
+as in the previous bullet point.  The context arguments provided to this
+callable when validating a specific header include:<ul>
+<li>the current header being validated</li>
+<li>the name of the keyword being validated</li>
+<li>any indices defined on the keyword being validated</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="valid">
+<h3>valid<a class="headerlink" href="#valid" title="Permalink to this headline">¶</a></h3>
+<p>This property is in some sense the opposite of <a class="reference internal" href="#mandatory">mandatory</a>&#8211;by defaut any
+keywords that appear in a header, whether they are explicitly checked by the
+schema or not, are valid.  But if a keyword is marked invalid by setting valid
+to <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a> then the mere presence of that keyword in a header makes the header
+invalid under that schema.</p>
+<p>Allowed values: <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>, callable</p>
+<blockquote>
+<div><ul class="simple">
+<li>If given a <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>, a value of <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a> means the keyword is <em>invalid</em>, and a
+value of <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> (the default) means that the keyword&#8217;s presence is valid.</li>
+<li>If given a callable, that callable <em>must</em> return a <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a> to be interpreted
+as in the previous bullet point.  The context arguments provided to this
+callable when validating a specific header include:<ul>
+<li>the current header being validated</li>
+<li>the name of the keyword being validated</li>
+<li>any indices defined on the keyword being validated</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="position">
+<h3>position<a class="headerlink" href="#position" title="Permalink to this headline">¶</a></h3>
+<p>This property defines the exact position, indicated by a zero-based numerical
+index into the list of header cards, that a keyword must be found in for the
+header to be valid.  More advanced rules can be defined by providing a callable
+that simply indicates whether or not the keyword&#8217;s position is valid regardless
+of its exact position.</p>
+<p>Allowed values: <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a>, callable</p>
+<blockquote>
+<div><ul class="simple">
+<li>If given an <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a> it must be greater than or equal to zero.  This indicates
+the exact index that the keyword must have in the list of all cards in the
+header being validated.</li>
+<li>If given a callable, that callable <em>must</em> return either an <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a> or a
+<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>.  If it returns and <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a>, that value is to be interpreted as in the
+previous bullet point.  If it returns a value of <a class="reference external" href="http://docs.python.org/library/constants.html#True" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">True</span></tt></a> that simply
+indicates that the keyword&#8217;s position is valid (regardless of its exact)
+index, and a value of <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a> indicates that the keyword&#8217;s position is
+invalid (and hence the header is invalid under that schema).  The context
+arguments provided to this callable when validating a specific header
+include:<ul>
+<li>the current header being validated</li>
+<li>the name of the keyword being validated</li>
+<li>any indices defined on the keyword being validated</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="value">
+<h3>value<a class="headerlink" href="#value" title="Permalink to this headline">¶</a></h3>
+<p>This property defines rules for the value associated with a keyword in a
+header.  It is one of the most complicated keyword properties, as it allows
+checking the type of the value (numeric, string, etc.), the exact allowed
+value(s) for that keyword, or various combinations thereof.</p>
+<p>Allowed values: <a class="reference external" href="http://docs.python.org/library/functions.html#type" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">type</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">float</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#complex" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">complex</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">str</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">list</span></tt></a>,
+<a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">tuple</span></tt></a>, callable</p>
+<blockquote>
+<div><ul class="simple">
+<li>If given a Python <a class="reference external" href="http://docs.python.org/library/functions.html#type" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">type</span></tt></a> object it must be Python built-in type
+corresponding to the types of scalar values that can be stored in a FITS
+header value.  These include <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">float</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#complex" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">complex</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">str</span></tt></a>, and <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>.
+That is, to require the value to be an integer, the <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a> type itself is
+given for the <tt class="docutils literal"><span class="pre">'value'</span></tt> property.</li>
+<li>If given an <a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">int</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">float</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#complex" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">complex</span></tt></a>, <a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">str</span></tt></a>, or <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a>&#8211;that is, an
+individual instance of one of those types rather than the types itself (eg.
+the integer <tt class="docutils literal"><span class="pre">1</span></tt> or the string <tt class="docutils literal"><span class="pre">'HST'</span></tt>) then the value of the keyword is
+compared for equality with this property.  If that comparison succeeds then
+the header is valid under that schema.  For comparison of numerical values
+this incorporates normal casting rules, so a rule like <tt class="docutils literal"><span class="pre">{'value':</span> <span class="pre">1}</span></tt>
+(where the value is must be equal to the integer <tt class="docutils literal"><span class="pre">1</span></tt>) succeeds for a
+floating-point value of <tt class="docutils literal"><span class="pre">1.0</span></tt>.  It is also possible to require a value of
+<tt class="docutils literal"><span class="pre">1</span></tt> that <em>must</em> be an strictly integer (without a decimal point anywhere
+in the value).  See two bullet points down.</li>
+<li>If given a <a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">list</span></tt></a> this suggests a range of values that are valid.  For
+example a list containing the strings <tt class="docutils literal"><span class="pre">['WCF',</span> <span class="pre">'HRC',</span> <span class="pre">'SBC']</span></tt> means that
+any one of those values (and only those values) is considered valid for
+the current keyword.  The lists need not be homogeneous so long as its
+members are only of the types listed in the previous bullet point.</li>
+<li>If given a <a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">tuple</span></tt></a> this represents a conjunction of any of the above three
+bullet points and the following one (a callable).  That is, a tuple of
+more than one <tt class="docutils literal"><span class="pre">'value'</span></tt> properties means that all those properties must
+be satisfied simultaneously.  A common case for this would be something like
+<tt class="docutils literal"><span class="pre">(int,</span> <span class="pre">1)</span></tt> which ensures that the value is equivalent to <tt class="docutils literal"><span class="pre">1</span></tt> and that
+it must be an integer (and not a floating point or complex value).</li>
+<li>If given a callable that callable <em>must</em> return a <a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">bool</span></tt></a> indicating whether
+or not the value is valid.  If <a class="reference external" href="http://docs.python.org/library/constants.html#False" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">False</span></tt></a> the value, and hence the header being
+validated under that schema are invalid.  This allows for completely
+arbitrary validation rules.  The context
+arguments provided to this callable when validating a specific header
+include:<ul>
+<li>the current header being validated</li>
+<li>the name of the keyword being validated</li>
+<li>any indices defined on the keyword being validated</li>
+<li>the actual value of the keyword in the current header being validated;
+this would be equivalent to <tt class="docutils literal"><span class="pre">ctx['header'][ctx['keyword']]</span></tt> and is
+provided for convenience</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="indices">
+<h3>indices<a class="headerlink" href="#indices" title="Permalink to this headline">¶</a></h3>
+<p>This property defines the indices associated with a keyword <em>template</em> such as
+<tt class="docutils literal"><span class="pre">NAXISn</span></tt>, where <tt class="docutils literal"><span class="pre">n</span></tt> is replaced with an index value.  See the section on
+<a class="reference internal" href="#indexed-keywords">Indexed keywords</a> for full details.  The <tt class="docutils literal"><span class="pre">'indices'</span></tt> property is different
+from others in that it does not determine validity of a <em>specific</em> keyword
+against the schema.  Rather, it generates a set of rules for a whole class of
+keywords determined by the keyword template and the range(s) of index values.</p>
+<p>Allowed values: <a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">dict</span></tt></a></p>
+<blockquote>
+<div><ul class="simple">
+<li>The value of this property is a <a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">dict</span></tt></a> mapping a single character string
+representing each index in the keyword template with either a <a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">list</span></tt></a> or
+a callable defining the range of values that specific index may take.<ul>
+<li>If given a <a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">list</span></tt></a> the contents of that list are the exact values that
+index may take.  For example the list generated by <tt class="docutils literal"><span class="pre">range(1,</span> <span class="pre">100)</span></tt>
+allows the index character to be replaced with the values 1 through 99.
+The elements of the list need not be strings, but when interpolating them
+into the keyword template they will be converted to strings by calling the
+<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">str</span></tt></a> function on them.  For integers (the most common case) this just
+returns the normal string representation of that integer.</li>
+<li>If given a callable, that callable must return a <a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><tt class="xref py py-obj docutils literal"><span class="pre">list</span></tt></a> as described in
+the previous bullet point.  The context arguments provided to this
+callable when validating a specific header include:<ul>
+<li>the current header being validated</li>
+<li>the name of the keyword template that indices for which indices are
+being generated</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="users_scripts.html" title="Executable Scripts"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="users_unfamiliar.html" title="Less Familiar Objects"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" >PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Miscellaneous Features &mdash; PyFITS 3.3.dev documentation</title>
+    
+    <link rel="stylesheet" href="../_static/pyfits.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.3.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyFITS 3.3.dev documentation" href="../index.html" />
+    <link rel="up" title="PyFITS Users Guide" href="users_guide.html" />
+    <link rel="next" title="Reference Manual" href="users_reference.html" />
+    <link rel="prev" title="Executable Scripts" href="users_scripts.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="users_reference.html" title="Reference Manual"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="users_scripts.html" title="Executable Scripts"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" accesskey="U">PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/stsci_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Miscellaneous Features</a><ul>
+<li><a class="reference internal" href="#warning-messages">Warning Messages</a></li>
+<li><a class="reference internal" href="#differs">Differs</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="users_scripts.html"
+                        title="previous chapter">Executable Scripts</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="users_reference.html"
+                        title="next chapter">Reference Manual</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/users_guide/users_misc.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="miscellaneous-features">
+<h1>Miscellaneous Features<a class="headerlink" href="#miscellaneous-features" title="Permalink to this headline">¶</a></h1>
+<p>In this chapter, we&#8217;ll describe some of the miscellaneous features of PyFITS.</p>
+<div class="section" id="warning-messages">
+<h2>Warning Messages<a class="headerlink" href="#warning-messages" title="Permalink to this headline">¶</a></h2>
+<p>PyFITS uses the Python warnings module to issue warning messages.  The user can
+suppress the warnings using the python command line argument <tt class="docutils literal"><span class="pre">-W&quot;ignore&quot;</span></tt>
+when starting an interactive python session.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>python -W&quot;ignore&quot;
+</pre></div>
+</div>
+<p>The user may also use the command line argument when running a python script as
+follows:</p>
+<div class="highlight-python"><div class="highlight"><pre>python -W&quot;ignore&quot; myscript.py
+</pre></div>
+</div>
+<p>It is also possible to suppress warnings from within a python script.  For
+instance, the warnings issued from a single call to the writeto convenience
+function may be suppressed from within a python script as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">pyfits</span>
+
+<span class="c"># ...</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">resetwarnings</span><span class="p">()</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">pyfits</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="nb">file</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">resetwarnings</span><span class="p">()</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s">&#39;always&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c"># ...</span>
+</pre></div>
+</div>
+<p>PyFITS also issues warnings when deprecated API features are used.  In Python
+2.7 and up deprecation warnings are ignored by default.  To run Python with
+deprecation warnings enabled, either start Python with the <tt class="docutils literal"><span class="pre">-Wall</span></tt> argument,
+or you can enable deprecation warnings specifically with <tt class="docutils literal"><span class="pre">-Wd</span></tt>.</p>
+<p>In Python versions below 2.7, if you wish to <em>squelch</em> deprecation warnings,
+you can start Python with <tt class="docutils literal"><span class="pre">-Wi::Deprecation</span></tt>.  This sets all deprecation
+warnings to ignored.  See
+<a class="reference external" href="http://docs.python.org/using/cmdline.html#cmdoption-unittest-discover-W">http://docs.python.org/using/cmdline.html#cmdoption-unittest-discover-W</a>
+for more information on the -W argument.</p>
+</div>
+<div class="section" id="differs">
+<h2>Differs<a class="headerlink" href="#differs" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="../api_docs/api_diff.html#module-pyfits.diff" title="pyfits.diff"><tt class="xref py py-mod docutils literal"><span class="pre">pyfits.diff</span></tt></a> module contains several facilities for generating and
+reporting the differences between two FITS files, or two components of a FITS
+file.</p>
+<p>The <a class="reference internal" href="../api_docs/api_diff.html#pyfits.FITSDiff" title="pyfits.FITSDiff"><tt class="xref py py-class docutils literal"><span class="pre">FITSDiff</span></tt></a> class can be used to generate and represent the
+differences between either two FITS files on disk, or two existing
+<a class="reference internal" href="../api_docs/api_hdulists.html#pyfits.HDUList" title="pyfits.HDUList"><tt class="xref py py-class docutils literal"><span class="pre">HDUList</span></tt></a> objects (or some combination thereof).</p>
+<p>Likewise, the <a class="reference internal" href="../api_docs/api_diff.html#pyfits.HeaderDiff" title="pyfits.HeaderDiff"><tt class="xref py py-class docutils literal"><span class="pre">HeaderDiff</span></tt></a> class can be used to find the differences
+just between two <a class="reference internal" href="../api_docs/api_headers.html#pyfits.Header" title="pyfits.Header"><tt class="xref py py-class docutils literal"><span class="pre">Header</span></tt></a> objects.  Other available differs include
+<a class="reference internal" href="../api_docs/api_diff.html#pyfits.HDUDiff" title="pyfits.HDUDiff"><tt class="xref py py-class docutils literal"><span class="pre">HDUDiff</span></tt></a>, <a class="reference internal" href="../api_docs/api_diff.html#pyfits.ImageDataDiff" title="pyfits.ImageDataDiff"><tt class="xref py py-class docutils literal"><span class="pre">ImageDataDiff</span></tt></a>, <a class="reference internal" href="../api_docs/api_diff.html#pyfits.TableDataDiff" title="pyfits.TableDataDiff"><tt class="xref py py-class docutils literal"><span class="pre">TableDataDiff</span></tt></a>, and
+<a class="reference internal" href="../api_docs/api_diff.html#pyfits.RawDataDiff" title="pyfits.RawDataDiff"><tt class="xref py py-class docutils literal"><span class="pre">RawDataDiff</span></tt></a>.</p>
+<p>Each of these classes are instantiated with two instances of the objects that
+they diff.  The returned diff instance has a number of attributes starting with
+<tt class="docutils literal"><span class="pre">.diff_</span></tt> that describe differences between the two objects.  See the API
+documentation for details on the different differ classes.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="users_reference.html" title="Reference Manual"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="users_scripts.html" title="Executable Scripts"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyFITS 3.3.dev documentation</a> &raquo;</li>
+          <li><a href="users_guide.html" >PyFITS Users Guide</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, J. C. Hsu, Paul Barrett, Christopher Hanley, James Taylor, Michael Droettboom, Erik M. Bray.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
