@@ -215,7 +215,7 @@ simply use the `mandatory`_ property with a value of `True`::
     >>> class MySchema4(Schema):
     ...     FOO = {'value': str, 'mandatory': True}
     ...
-        >>> hdr = Header([('ZAPHOD', 1), ('FORD', 2)])
+    >>> hdr = Header([('ZAPHOD', 1), ('FORD', 2)])
     >>> MySchema.validate(hdr)
     Traceback (most recent call last):
     ...
