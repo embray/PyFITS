@@ -1,0 +1,88 @@
+*******
+Schemas
+*******
+
+.. automodule:: pyfits.schema
+.. currentmodule:: pyfits
+
+:class:`Schema`
+===============
+.. autoclass:: Schema
+   :members:
+
+:class:`SchemaDefinitionError`
+==============================
+.. autoclass:: SchemaDefinitionError
+
+:class:`SchemaValidationError`
+==============================
+.. autoclass:: SchemaValidationError
+
+:func:`validate_fits_datetime`
+==============================
+.. autofunction:: validate_fits_datetime
+
+:class:`BaseSchema`
+===================
+.. autoclass:: BaseSchema
+   :show-inheritance:
+
+:class:`ChecksumSchema`
+=======================
+.. autoclass:: ChecksumSchema
+   :show-inheritance:
+
+:class:`PrimarySchema`
+======================
+.. autoclass:: PrimarySchema
+   :show-inheritance:
+
+:class:`ExtensionSchema`
+========================
+.. autoclass:: ExtensionSchema
+   :show-inheritance:
+
+:class:`StandardExtensionSchema`
+================================
+.. autoclass:: StandardExtensionSchema
+   :show-inheritance:
+
+:class:`CompImageSchema`
+========================
+.. autoclass:: CompImageSchema
+   :show-inheritance:
+
+:class:`RandomGroupsSchema`
+===========================
+.. autoclass:: RandomGroupsSchema
+   :show-inheritance:
+
+:class:`BaseArraySchema`
+========================
+.. autoclass:: BaseArraySchema
+   :show-inheritance:
+
+:class:`PrimaryArraySchema`
+===========================
+.. autoclass:: PrimaryArraySchema
+   :show-inheritance:
+
+:class:`ImageExtensionSchema`
+=============================
+.. autoclass:: ImageExtensionSchema
+   :show-inheritance:
+
+:class:`BaseTableSchema`
+========================
+.. autoclass:: BaseTableSchema
+   :show-inheritance:
+
+:class:`TableExtensionSchema`
+=============================
+.. autoclass:: TableExtensionSchema
+   :show-inheritance:
+
+:class:`BinTableExtensionSchema`
+================================
+.. autoclass:: BinTableExtensionSchema
+   :show-inheritance:
