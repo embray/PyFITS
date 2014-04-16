@@ -189,11 +189,15 @@ class _File(object):
         self.close()
 
     def readable(self):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if self.writeonly:
             return False
         return isreadable(self.__file)
 
     def read(self, size=None):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if not hasattr(self.__file, 'read'):
             raise EOFError
         try:
@@ -215,6 +219,9 @@ class _File(object):
         Usually it's best not to use the `size` argument with this method, but
         it's provided for compatibility.
         """
+
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
 
         if not hasattr(self.__file, 'read'):
             raise EOFError
@@ -259,11 +266,15 @@ class _File(object):
             return data
 
     def writable(self):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if self.readonly:
             return False
         return iswritable(self.__file)
 
     def write(self, string):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if hasattr(self.__file, 'write'):
             _write_string(self.__file, string)
 
@@ -275,10 +286,14 @@ class _File(object):
         the file on disk reflects the data written.
         """
 
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if hasattr(self.__file, 'write'):
             _array_to_file(array, self.__file)
 
     def flush(self):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if hasattr(self.__file, 'flush'):
             self.__file.flush()
 
@@ -286,6 +301,8 @@ class _File(object):
         # In newer Python versions, GzipFiles support the whence argument, but
         # I don't think it was added until 2.6; instead of assuming it's
         # present, we implement our own support for it here
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if not hasattr(self.__file, 'seek'):
             return
         if isinstance(self.__file, gzip.GzipFile):
@@ -305,11 +322,15 @@ class _File(object):
                           (self.size, pos))
 
     def tell(self):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if not hasattr(self.__file, 'tell'):
             raise EOFError
         return self.__file.tell()
 
     def truncate(self, size=None):
+        if self.closed:
+            raise ValueError('I/O operation on closed file')
         if hasattr(self.__file, 'truncate'):
             self.__file.truncate(size)
 
