@@ -75,6 +75,7 @@ class _File(object):
     def __init__(self, fileobj=None, mode=None, memmap=False, clobber=False):
         if fileobj is None:
             self.__file = None
+            self._close_underlying = False
             self.closed = False
             self.binary = True
             self.mode = mode
@@ -122,6 +123,7 @@ class _File(object):
         else:
             self.name = fileobj_name(fileobj)
 
+        self._close_underlying = False
         self.closed = False
         self.binary = True
         self.mode = mode
@@ -339,9 +341,16 @@ class _File(object):
         Close the 'physical' FITS file.
         """
 
-        if hasattr(self.__file, 'close'):
+        if hasattr(self.__file, 'close') and self._close_underlying:
+            # Only close the underlying file object if it wasn't given to us
+            # already open--otherwise let external interfaces manage their own
+            # files
             self.__file.close()
 
+        # The underlying file is, if necessary, already closed.  Not much point
+        # in setting this flag back to the default but can't hurt for
+        # consistency's sake
+        self._close_underlying = False
         self.closed = True
 
     def _overwrite_existing(self, clobber, fileobj, closed):
@@ -393,8 +402,10 @@ class _File(object):
             self.__file = fileobj
         elif isfile(fileobj):
             self.__file = fileobj_open(self.name, PYFITS_MODES[mode])
+            self._close_underlying = True
         else:
             self.__file = gzip.open(self.name, PYFITS_MODES[mode])
+            self._close_underlying = True
 
         if fmode == 'ab+':
             # Return to the beginning of the file--in Python 3 when opening in
@@ -466,6 +477,7 @@ class _File(object):
         else:
             self.__file = fileobj_open(self.name, PYFITS_MODES[mode])
             # Make certain we're back at the beginning of the file
+        self._close_underlying = True
         self.__file.seek(0)
 
     def _open_zipfile(self, fileobj, mode):
