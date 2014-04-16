@@ -753,11 +753,7 @@ class HDUList(list, _Verify):
         """
 
         if fileobj is not None:
-            if not isinstance(fileobj, _File):
-                # instantiate a FITS file object (ffo)
-                ffo = _File(fileobj, mode=mode, memmap=memmap)
-            else:
-                ffo = fileobj
+            ffo = _File(fileobj, mode=mode, memmap=memmap)
             # The pyfits mode is determined by the _File initializer if the
             # supplied mode was None
             mode = ffo.mode

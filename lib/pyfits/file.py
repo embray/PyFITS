@@ -72,9 +72,9 @@ class _File(object):
     # See self._test_mmap
     _mmap_available = None
 
-    def __init__(self, fileobj=None, mode=None, memmap=False, clobber=False):
+    def __init__(self, fileobj=None, mode=None, memmap=None, clobber=False):
         if fileobj is None:
-            self.__file = None
+            self._file = None
             self._close_underlying = False
             self.closed = False
             self.binary = True
@@ -89,7 +89,9 @@ class _File(object):
             self.simulateonly = False
 
         if mode is None:
-            if _is_random_access_file_backed(fileobj):
+            if isinstance(fileobj, _File):
+                mode = fileobj.mode
+            elif _is_random_access_file_backed(fileobj):
                 fmode = fileobj_mode(fileobj)
                 # If the mode is unsupported just leave it as None; we'll
                 # catch this case below
@@ -99,6 +101,13 @@ class _File(object):
 
         if mode not in PYFITS_MODES:
             raise ValueError("Mode '%s' not recognized" % mode)
+
+        if memmap is None:
+            if isinstance(fileobj, _File):
+                memmap = fileobj.memmap
+            else:
+                # Disabled by default
+                memmap = False
 
         if (isinstance(fileobj, string_types) and
                 mode not in ('ostream', 'append') and
@@ -137,8 +146,13 @@ class _File(object):
         self.readonly = False
         self.writeonly = False
 
-        # Initialize the internal self.__file object
-        if _is_random_access_file_backed(fileobj):
+        # Initialize the internal self.__ile object
+        if isinstance(fileobj, _File):
+            self._file = fileobj._file
+            self.closed = fileobj.closed
+            self.file_like = fileobj.file_like
+            self.compression = fileobj.compression
+        elif _is_random_access_file_backed(fileobj):
             self._open_fileobj(fileobj, mode, clobber)
         elif isinstance(fileobj, string_types):
             self._open_filename(fileobj, mode, clobber)
@@ -160,19 +174,21 @@ class _File(object):
 
         # For 'ab+' mode, the pointer is at the end after the open in
         # Linux, but is at the beginning in Solaris.
-        if (mode == 'ostream' or self.compression or
-            not hasattr(self.__file, 'seek')):
+        if isinstance(self._file, _File):
+            self.size = self._file.size
+        elif (mode == 'ostream' or self.compression or
+            not hasattr(self._file, 'seek')):
             # For output stream start with a truncated file.
             # For compressed files we can't really guess at the size
             self.size = 0
         else:
-            pos = self.__file.tell()
-            self.__file.seek(0, 2)
-            self.size = self.__file.tell()
-            self.__file.seek(pos)
+            pos = self._file.tell()
+            self._file.seek(0, 2)
+            self.size = self._file.tell()
+            self._file.seek(pos)
 
         if self.memmap:
-            if not isfile(self.__file):
+            if not isfile(self._file):
                 self.memmap = False
             elif not self.readonly and not self._test_mmap():
                 # Test mmap.flush--see
@@ -181,7 +197,7 @@ class _File(object):
 
     def __repr__(self):
         return '<%s.%s %s>' % (self.__module__, self.__class__.__name__,
-                               self.__file)
+                               self._file)
 
     # Support the 'with' statement
     def __enter__(self):
@@ -190,20 +206,30 @@ class _File(object):
     def __exit__(self, type, value, traceback):
         self.close()
 
+    def __iter__(self):
+        """
+        Allow iteration over the underlying file object.
+
+        Note this does *not* provide a standardized iteration--it uses whatever
+        iterator the underlying file object provides.
+        """
+
+        return iter(self._file)
+
     def readable(self):
         if self.closed:
             raise ValueError('I/O operation on closed file')
         if self.writeonly:
             return False
-        return isreadable(self.__file)
+        return isreadable(self._file)
 
     def read(self, size=None):
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if not hasattr(self.__file, 'read'):
+        if not hasattr(self._file, 'read'):
             raise EOFError
         try:
-            return self.__file.read(size)
+            return self._file.read(size)
         except IOError:
             # On some versions of Python, it appears, GzipFile will raise an
             # IOError if you try to read past its end (as opposed to just
@@ -225,7 +251,7 @@ class _File(object):
         if self.closed:
             raise ValueError('I/O operation on closed file')
 
-        if not hasattr(self.__file, 'read'):
+        if not hasattr(self._file, 'read'):
             raise EOFError
 
         if not isinstance(dtype, np.dtype):
@@ -255,16 +281,16 @@ class _File(object):
             shape = (1,)
 
         if self.memmap:
-            return Memmap(self.__file, offset=offset,
+            return Memmap(self._file, offset=offset,
                           mode=MEMMAP_MODES[self.mode], dtype=dtype,
                           shape=shape).view(np.ndarray)
         else:
             count = reduce(lambda x, y: x * y, shape)
-            pos = self.__file.tell()
-            self.__file.seek(offset)
-            data = _array_from_file(self.__file, dtype, count, '')
+            pos = self._file.tell()
+            self._file.seek(offset)
+            data = _array_from_file(self._file, dtype, count, '')
             data.shape = shape
-            self.__file.seek(pos)
+            self._file.seek(pos)
             return data
 
     def writable(self):
@@ -272,13 +298,13 @@ class _File(object):
             raise ValueError('I/O operation on closed file')
         if self.readonly:
             return False
-        return iswritable(self.__file)
+        return iswritable(self._file)
 
     def write(self, string):
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if hasattr(self.__file, 'write'):
-            _write_string(self.__file, string)
+        if hasattr(self._file, 'write'):
+            _write_string(self._file, string)
 
     def writearray(self, array):
         """
@@ -290,14 +316,14 @@ class _File(object):
 
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if hasattr(self.__file, 'write'):
-            _array_to_file(array, self.__file)
+        if hasattr(self._file, 'write'):
+            _array_to_file(array, self._file)
 
     def flush(self):
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if hasattr(self.__file, 'flush'):
-            self.__file.flush()
+        if hasattr(self._file, 'flush'):
+            self._file.flush()
 
     def seek(self, offset, whence=0):
         # In newer Python versions, GzipFiles support the whence argument, but
@@ -305,19 +331,19 @@ class _File(object):
         # present, we implement our own support for it here
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if not hasattr(self.__file, 'seek'):
+        if not hasattr(self._file, 'seek'):
             return
-        if isinstance(self.__file, gzip.GzipFile):
+        if isinstance(self._file, gzip.GzipFile):
             if whence:
                 if whence == 1:
-                    offset = self.__file.offset + offset
+                    offset = self._file.offset + offset
                 else:
                     raise ValueError('Seek from end not supported')
-            self.__file.seek(offset)
+            self._file.seek(offset)
         else:
-            self.__file.seek(offset, whence)
+            self._file.seek(offset, whence)
 
-        pos = self.__file.tell()
+        pos = self._file.tell()
         if self.size and pos > self.size:
             warnings.warn('File may have been truncated: actual file length '
                           '(%i) is smaller than the expected size (%i)' %
@@ -326,26 +352,26 @@ class _File(object):
     def tell(self):
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if not hasattr(self.__file, 'tell'):
+        if not hasattr(self._file, 'tell'):
             raise EOFError
-        return self.__file.tell()
+        return self._file.tell()
 
     def truncate(self, size=None):
         if self.closed:
             raise ValueError('I/O operation on closed file')
-        if hasattr(self.__file, 'truncate'):
-            self.__file.truncate(size)
+        if hasattr(self._file, 'truncate'):
+            self._file.truncate(size)
 
     def close(self):
         """
         Close the 'physical' FITS file.
         """
 
-        if hasattr(self.__file, 'close') and self._close_underlying:
+        if hasattr(self._file, 'close') and self._close_underlying:
             # Only close the underlying file object if it wasn't given to us
             # already open--otherwise let external interfaces manage their own
             # files
-            self.__file.close()
+            self._file.close()
 
         # The underlying file is, if necessary, already closed.  Not much point
         # in setting this flag back to the default but can't hurt for
@@ -399,18 +425,18 @@ class _File(object):
                 raise ValueError(
                     "Mode argument '%s' does not match mode of the input "
                     "file (%s)." % (mode, fmode))
-            self.__file = fileobj
+            self._file = fileobj
         elif isfile(fileobj):
-            self.__file = fileobj_open(self.name, PYFITS_MODES[mode])
+            self._file = fileobj_open(self.name, PYFITS_MODES[mode])
             self._close_underlying = True
         else:
-            self.__file = gzip.open(self.name, PYFITS_MODES[mode])
+            self._file = gzip.open(self.name, PYFITS_MODES[mode])
             self._close_underlying = True
 
         if fmode == 'ab+':
             # Return to the beginning of the file--in Python 3 when opening in
             # append mode the file pointer is at the end of the file
-            self.__file.seek(0)
+            self._file.seek(0)
 
     def _open_filelike(self, fileobj, mode, clobber):
         """Open a FITS file from a file-like object, i.e. one that has
@@ -418,7 +444,7 @@ class _File(object):
         """
 
         self.file_like = True
-        self.__file = fileobj
+        self._file = fileobj
 
         if fileobj_closed(fileobj):
             raise IOError("Cannot read from/write to a closed file-like "
@@ -426,29 +452,29 @@ class _File(object):
 
         if isinstance(fileobj, zipfile.ZipFile):
             self._open_zipfile(fileobj, mode)
-            self.__file.seek(0)
+            self._file.seek(0)
             # We can bypass any additional checks at this point since now
-            # self.__file points to the temp file extracted from the zip
+            # self._file points to the temp file extracted from the zip
             return
 
         # If there is not seek or tell methods then set the mode to
         # output streaming.
-        if (not hasattr(self.__file, 'seek') or
-            not hasattr(self.__file, 'tell')):
+        if (not hasattr(self._file, 'seek') or
+            not hasattr(self._file, 'tell')):
             self.mode = mode = 'ostream'
 
-        if mode == 'ostream':
+        if mode == 'ostream' and not isinstance(fileobj, _File):
             self._overwrite_existing(clobber, fileobj, False)
 
         # Any "writeable" mode requires a write() method on the file object
         if (self.mode in ('update', 'append', 'ostream') and
-            not hasattr(self.__file, 'write')):
+            not hasattr(self._file, 'write')):
             raise IOError("File-like object does not have a 'write' "
                           "method, required for mode '%s'."
                           % self.mode)
 
         # Any mode except for 'ostream' requires readability
-        if self.mode != 'ostream' and not hasattr(self.__file, 'read'):
+        if self.mode != 'ostream' and not hasattr(self._file, 'read'):
             raise IOError("File-like object does not have a 'read' "
                           "method, required for mode %r."
                           % self.mode)
@@ -469,16 +495,16 @@ class _File(object):
 
         if ext == '.gz' or magic.startswith(GZIP_MAGIC):
             # Handle gzip files
-            self.__file = gzip.open(self.name, PYFITS_MODES[mode])
+            self._file = gzip.open(self.name, PYFITS_MODES[mode])
             self.compression = 'gzip'
         elif ext == '.zip' or magic.startswith(PKZIP_MAGIC):
             # Handle zip files
             self._open_zipfile(self.name, mode)
         else:
-            self.__file = fileobj_open(self.name, PYFITS_MODES[mode])
+            self._file = fileobj_open(self.name, PYFITS_MODES[mode])
             # Make certain we're back at the beginning of the file
         self._close_underlying = True
-        self.__file.seek(0)
+        self._file.seek(0)
 
     def _open_zipfile(self, fileobj, mode):
         """Limited support for zipfile.ZipFile objects containing a single
@@ -502,8 +528,11 @@ class _File(object):
         if len(namelist) != 1:
             raise IOError(
               "Zip files with multiple members are not supported.")
-        self.__file = tempfile.NamedTemporaryFile(suffix='.fits')
-        self.__file.write(zfile.read(namelist[0]))
+
+        filename = namelist[0]
+        _, ext = os.path.splitext(filename)
+        self._file = tempfile.NamedTemporaryFile(suffix=ext)
+        self._file.write(zfile.read(filename))
 
         if close:
             zfile.close()

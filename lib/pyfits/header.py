@@ -15,8 +15,8 @@ from .extern.six.moves import zip, range
 from .card import Card, CardList, KEYWORD_LENGTH, _pad
 from .file import _File
 from .util import (BLOCK_SIZE, deprecated, isiterable, encode_ascii,
-                   decode_ascii, fileobj_is_binary, fileobj_closed,
-                   _pad_length, PyfitsDeprecationWarning)
+                   decode_ascii, fileobj_is_binary, _pad_length,
+                   PyfitsDeprecationWarning)
 
 
 # This regular expression can match a *valid* END card which just consists of
@@ -428,19 +428,8 @@ class Header(object):
             A new `Header` instance.
         """
 
-        close_file = False
-        if isinstance(fileobj, string_types):
-            # Open in text mode by default to support newline handling; if a
-            # binary-mode file object is passed in, the user is on their own
-            # with respect to newline handling
-            fileobj = open(fileobj, 'r')
-            close_file = True
-
-        try:
+        with _File(fileobj) as fileobj:
             return cls._fromfile_internal(fileobj, sep, endcard, padding)
-        finally:
-            if close_file:
-                fileobj.close()
 
     @classmethod
     def _fromfile_internal(cls, fileobj, sep, endcard, padding):
@@ -645,12 +634,7 @@ class Header(object):
             If `True`, overwrites the output file if it already exists
         """
 
-        close_file = fileobj_closed(fileobj)
-
-        if not isinstance(fileobj, _File):
-            fileobj = _File(fileobj, mode='ostream', clobber=clobber)
-
-        try:
+        with _File(fileobj, mode='ostream', clobber=clobber) as fileobj:
             blocks = self.tostring(sep=sep, endcard=endcard, padding=padding)
             actual_block_size = _block_size(sep)
             if padding and len(blocks) % actual_block_size != 0:
@@ -667,9 +651,6 @@ class Header(object):
                     offset = 0
                 fileobj.write(blocks.encode('ascii'))
                 fileobj.flush()
-        finally:
-            if close_file:
-                fileobj.close()
 
     @classmethod
     def fromtextfile(cls, fileobj, endcard=False):

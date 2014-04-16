@@ -396,11 +396,7 @@ class _BaseHDU(object):
             ``END`` card in the last header.
         """
 
-        # TODO: Figure out a way to make it possible for the _File
-        # constructor to be a noop if the argument is already a _File
-        if not isinstance(fileobj, _File):
-            fileobj = _File(fileobj)
-
+        fileobj = _File(fileobj)
         hdr_offset = fileobj.tell()
         hdr = Header.fromfile(fileobj, endcard=not ignore_missing_end)
 
