@@ -428,7 +428,7 @@ class Header(object):
             A new `Header` instance.
         """
 
-        with _File(fileobj) as fileobj:
+        with _File(fileobj, binary=False) as fileobj:
             return cls._fromfile_internal(fileobj, sep, endcard, padding)
 
     @classmethod

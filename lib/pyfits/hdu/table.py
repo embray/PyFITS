@@ -858,9 +858,11 @@ class BinTableHDU(_TableBaseHDU):
             datafile = root + '.txt'
 
         if datafile:
-            datafile = _File(datafile, mode='ostream', clobber=clobber)
+            datafile = _File(datafile, mode='ostream', binary=False,
+                             clobber=clobber)
         if cdfile:
-            cdfile = _File(cdfile, mode='ostream', clobber=clobber)
+            cdfile = _File(cdfile, mode='ostream', binary=False,
+                           clobber=clobber)
         if hfile:
             hfile = _File(hfile, mode='ostream', clobber=clobber)
 
@@ -951,11 +953,11 @@ class BinTableHDU(_TableBaseHDU):
         coldefs = None
         # Process the column definitions file
         if cdfile:
-            with _File(cdfile) as cdfile:
+            with _File(cdfile, binary=False) as cdfile:
                 coldefs = cls._load_coldefs(cdfile)
 
         # Process the data file
-        with _File(datafile) as datafile:
+        with _File(datafile, binary=False) as datafile:
             data = cls._load_data(datafile, coldefs)
 
         if coldefs is None:

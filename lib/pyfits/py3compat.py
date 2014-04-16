@@ -54,8 +54,11 @@ if PY3:  # pragma: py3
 
     # See the docstring for pyfits.util.fileobj_open for why we need to replace
     # this function
-    def fileobj_open(filename, mode):
-        return open(filename, mode, buffering=0)
+    def fileobj_open(filename, mode, buffering=False):
+        if not buffering:
+            return open(filename, mode, buffering=0)
+        else:
+            return open(filename, mode)
     pyfits.util.fileobj_open = fileobj_open
 
     # Support the io.IOBase.readable/writable methods

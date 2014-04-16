@@ -438,7 +438,7 @@ def isfile(f):
     return isinstance(f, file)
 
 
-def fileobj_open(filename, mode):
+def fileobj_open(filename, mode, buffering=False):
     """
     A wrapper around the `open()` builtin.
 

@@ -72,12 +72,13 @@ class _File(object):
     # See self._test_mmap
     _mmap_available = None
 
-    def __init__(self, fileobj=None, mode=None, memmap=None, clobber=False):
+    def __init__(self, fileobj=None, mode=None, binary=True, memmap=None,
+                 clobber=False):
         if fileobj is None:
             self._file = None
             self._close_underlying = False
             self.closed = False
-            self.binary = True
+            self.binary = binary
             self.mode = mode
             self.memmap = memmap
             self.compression = None
@@ -134,7 +135,7 @@ class _File(object):
 
         self._close_underlying = False
         self.closed = False
-        self.binary = True
+        self.binary = binary
         self.mode = mode
         self.memmap = memmap
 
@@ -408,6 +409,22 @@ class _File(object):
         closed = fileobj_closed(fileobj)
         fmode = fileobj_mode(fileobj) or PYFITS_MODES[mode]
 
+        if mode in ('readonly', 'denywrite', 'copywrite'):
+            valid_modes = ('rb', 'rb+', 'wb+', 'ab+')
+        elif mode == 'append':
+            valid_modes = ('rb+', 'ab+')
+        elif mode == 'ostream':
+            valid_modes = ('rb+', 'wb', 'wb+', 'ab', 'ab+')
+        elif mode == 'update':
+            valid_modes = ('rb+', 'wb+')
+
+        if self.binary:
+            buffering = False
+        else:
+            fmode = fmode.replace('b', '')
+            valid_modes = [m.replace('b', '') for m in valid_modes]
+            buffering = True
+
         if mode == 'ostream':
             self._overwrite_existing(clobber, fileobj, closed)
 
@@ -416,24 +433,21 @@ class _File(object):
             # custom file modes to raw file object modes, many of the latter
             # can be used appropriately for the former.  So determine whether
             # the modes match up appropriately
-            if ((mode in ('readonly', 'denywrite', 'copyonwrite') and
-                    not ('r' in fmode or '+' in fmode)) or
-                    (mode == 'append' and fmode not in ('ab+', 'rb+')) or
-                    (mode == 'ostream' and
-                     not ('w' in fmode or 'a' in fmode or '+' in fmode)) or
-                    (mode == 'update' and fmode not in ('rb+', 'wb+'))):
+            if fmode not in valid_modes:
                 raise ValueError(
                     "Mode argument '%s' does not match mode of the input "
                     "file (%s)." % (mode, fmode))
+
             self._file = fileobj
         elif isfile(fileobj):
-            self._file = fileobj_open(self.name, PYFITS_MODES[mode])
+            self._file = fileobj_open(self.name, PYFITS_MODES[mode],
+                                      buffering=buffering)
             self._close_underlying = True
         else:
             self._file = gzip.open(self.name, PYFITS_MODES[mode])
             self._close_underlying = True
 
-        if fmode == 'ab+':
+        if fmode in ('a+', 'ab+'):
             # Return to the beginning of the file--in Python 3 when opening in
             # append mode the file pointer is at the end of the file
             self._file.seek(0)
@@ -492,16 +506,22 @@ class _File(object):
             magic = b('')
 
         ext = os.path.splitext(self.name)[1]
+        fmode = PYFITS_MODES[mode]
+        if self.binary:
+            buffering = False
+        else:
+            fmode = fmode.replace('b', '')
+            buffering = True
 
         if ext == '.gz' or magic.startswith(GZIP_MAGIC):
             # Handle gzip files
-            self._file = gzip.open(self.name, PYFITS_MODES[mode])
+            self._file = gzip.open(self.name, fmode)
             self.compression = 'gzip'
         elif ext == '.zip' or magic.startswith(PKZIP_MAGIC):
             # Handle zip files
             self._open_zipfile(self.name, mode)
         else:
-            self._file = fileobj_open(self.name, PYFITS_MODES[mode])
+            self._file = fileobj_open(self.name, fmode, buffering=buffering)
             # Make certain we're back at the beginning of the file
         self._close_underlying = True
         self._file.seek(0)
