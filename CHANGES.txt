@@ -25,6 +25,11 @@ API Changes
   otherwise accept the same arguments as ``pyfits.new_table`` which is now
   just a wrapper for these.
 
+- Improved support for tables containing zero-width columns.  This is a
+  little-used feature of FITS that table columns can have zero-byte formats
+  (perhaps for use as a placeholder).  PyFITS now returns these columns as an
+  empty array, whereas previously it hid them entirely. (#42)
+
 - Fixed an issue where header wildcard matching (for example
   ``header['DATE*']``) can be used to match *any* characters that might appear
   in a keyword.  Previously this only matched keywords containing characters

@@ -185,7 +185,6 @@ class FITS_rec(np.recarray):
         self._coldefs = None
         self._gap = 0
         self._uint = False
-        self.names = list(self.dtype.names)
         self.formats = None
         return self
 
@@ -201,7 +200,6 @@ class FITS_rec(np.recarray):
             self._nfields = obj._nfields
             self._gap = obj._gap
             self._uint = obj._uint
-            self.names = obj.names
             self.formats = obj.formats
         else:
             # This will allow regular ndarrays with fields, rather than
@@ -217,7 +215,6 @@ class FITS_rec(np.recarray):
             self._uint = getattr(obj, '_uint', False)
 
             # Bypass setattr-based assignment to fields; see #86
-            self.names = list(obj.dtype.names)
             self.formats = None
 
             attrs = ['_convert', '_coldefs', '_gap']
@@ -546,6 +543,16 @@ class FITS_rec(np.recarray):
 
         return self._coldefs
 
+    @property
+    def names(self):
+        """List of column names."""
+
+        if hasattr(self, '_coldefs') and self._coldefs is not None:
+            return self._coldefs.names
+        else:
+            return list(self.dtype.names)
+
+
     def field(self, key):
         """
         A view of a `Column`'s data as an array.
@@ -553,16 +560,16 @@ class FITS_rec(np.recarray):
 
         # NOTE: The *column* index may not be the same as the field index in
         # the recarray, if the column is a phantom column
-        if isinstance(key, string_types):
-            col_indx = _get_index(self.columns.names, key)
-            if self.columns[col_indx]._phantom:
-                warnings.warn(
-                    'Field %r has a repeat count of 0 in its format code, '
-                    'indicating an empty field.' % key)
-                return None
-            field_indx = _get_index(self.names, key)
-        else:
-            col_indx = field_indx = _get_index(self.names, key)
+        col_indx = _get_index(self.columns.names, key)
+        if self.columns[col_indx]._phantom:
+            warnings.warn(
+                'Field %r has a repeat count of 0 in its format code, '
+                'indicating an empty field.' % key)
+            recformat = self.columns._recformats[col_indx].lstrip('0')
+            return np.array([], dtype=recformat)
+        # Ignore phantom columns in determining the physical field number
+        n_phantom = len([c for c in self.columns[:col_indx] if c._phantom])
+        field_indx = col_indx - n_phantom
 
         recformat = self._coldefs._recformats[col_indx]
 
