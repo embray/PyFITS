@@ -579,9 +579,10 @@ class TestImageFunctions(PyfitsTestCase):
                 # Otherwise may get an overflow error, at least on Python 2
                 max_uint = np.uint64(int_size)
 
-            arr = np.empty(100, dtype=('uint%d' % int_size))
+            dtype = 'uint%d' % int_size
+            arr = np.empty(100, dtype=dtype)
             arr.fill(max_uint)
-            arr -= np.arange(100)
+            arr -= np.arange(100, dtype=dtype)
 
             uint_hdu = fits.PrimaryHDU(data=arr)
             assert np.all(uint_hdu.data == arr)
