@@ -5,7 +5,6 @@ import gzip
 import itertools
 import mmap
 import os
-import platform
 import signal
 import sys
 import tempfile
@@ -471,7 +470,7 @@ def fileobj_closed(f):
     elif hasattr(f, 'fp') and hasattr(f.fp, 'closed'):
         return f.fp.closed
     else:
-        return True
+        return False
 
 
 def fileobj_mode(f):
@@ -764,8 +763,8 @@ def _array_to_file(arr, outfile):
     # implemented there yet: https://github.com/astropy/astropy/issues/839
     osx_write_limit = (2 ** 32) - 1
 
-    if (sys.platform == 'darwin' and platform.architecture()[0] == '64bit' and
-            arr.nbytes >= osx_write_limit + 1 and arr.nbytes % 4096 == 0):
+    if (sys.platform == 'darwin' and arr.nbytes >= osx_write_limit + 1 and
+            arr.nbytes % 4096 == 0):
         idx = 0
         # chunksize is a count of elements in the array, not bytes
         chunksize = osx_write_limit // arr.itemsize

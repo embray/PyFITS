@@ -8,6 +8,7 @@ import sys
 import warnings
 
 from collections import defaultdict
+from itertools import izip_longest
 
 from pyfits.card import Card, CardList, BLANK_CARD, KEYWORD_LENGTH, _pad
 from pyfits.file import _File
@@ -1776,10 +1777,11 @@ class Header(object):
 
         increment = 1 if increment else -1
 
-        for indices in self._keyword_indices.itervalues():
-            for jdx, keyword_index in enumerate(indices):
-                if keyword_index >= idx:
-                    indices[jdx] += increment
+        for index_sets in (self._keyword_indices, self._rvkc_indices):
+            for indices in index_sets.itervalues():
+                for jdx, keyword_index in enumerate(indices):
+                    if keyword_index >= idx:
+                        indices[jdx] += increment
 
     def _countblanks(self):
         """Returns the number of blank cards at the end of the Header."""
@@ -2094,13 +2096,22 @@ class _CardAccessor(object):
         return iter(self._header._cards)
 
     def __eq__(self, other):
-        if isiterable(other):
-            for a, b in itertools.izip(self, other):
-                if a != b:
-                    return False
+        # If the `other` item is a scalar we will still treat it as equal if
+        # this _CardAccessor only contains one item
+        if not isiterable(other) or isinstance(other, basestring):
+            if len(self) == 1:
+                other = [other]
             else:
-                return True
-        return False
+                return False
+
+        for a, b in izip_longest(self, other):
+            if a != b:
+                return False
+        else:
+            return True
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def __getitem__(self, item):
         if isinstance(item, slice) or self._header._haswildcard(item):
