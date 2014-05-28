@@ -50,8 +50,8 @@ accessed via keyword name or index of an HDU's header attribute. Here is a
 quick summary:
 
     >>> hdulist = astropy.io.fits.open('input.fits')  # open a FITS file
-    >>> prihdr = hdulist[0].header  # the primary HDU header
-    >>> print prihdr[3]             # get the 4th keyword's value
+    >>> prihdr = hdulist[0].header           # the primary HDU header
+    >>> print prihdr[3]                      # get the 4th keyword's value
     10
     >>> prihdr[3] = 20  # change its value
     >>> prihdr['DARKCORR']  # get the value of the keyword 'darkcorr'

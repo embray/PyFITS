@@ -5,8 +5,8 @@ import platform
 import numpy as np
 
 import pyfits as fits
-from pyfits.tests import PyfitsTestCase
-from pyfits.tests.util import ignore_warnings
+from . import PyfitsTestCase
+from .util import ignore_warnings
 
 
 class TestUintFunctions(PyfitsTestCase):
@@ -87,7 +87,7 @@ class TestUintFunctions(PyfitsTestCase):
             col = fits.Column(name=utype, array=u,
                               format=self.format_map[utype], bzero=bzero)
 
-            table = fits.new_table([col])
+            table = fits.BinTableHDU.from_columns([col])
             assert (table.data[utype] == u).all()
             # This used to be table.data.base, but now after adding a table to
             # a BinTableHDU it gets stored as a view of the original table,

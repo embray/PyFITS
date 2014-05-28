@@ -6,16 +6,19 @@ import warnings
 
 import numpy as np
 
-from pyfits.card import Card
-from pyfits.column import Column, ColDefs, _FormatP, TDEF_RE
-from pyfits.column import KEYWORD_NAMES as TABLE_KEYWORD_NAMES
-from pyfits.fitsrec import FITS_rec
-from pyfits.hdu.base import DELAYED, ExtensionHDU
-from pyfits.hdu.image import _ImageBaseHDU, ImageHDU
-from pyfits.hdu.table import BinTableHDU
-from pyfits.header import Header
-from pyfits.util import (lazyproperty, _is_pseudo_unsigned, _unsigned_zero,
-                         deprecated, _is_int)
+from ..extern.six import string_types, iteritems
+from ..extern.six.moves import range
+
+from ..card import Card
+from ..column import Column, ColDefs, _FormatP, TDEF_RE
+from ..column import KEYWORD_NAMES as TABLE_KEYWORD_NAMES
+from ..fitsrec import FITS_rec
+from ..header import Header
+from ..util import (lazyproperty, _is_pseudo_unsigned, _unsigned_zero,
+                    deprecated, _is_int, PyfitsPendingDeprecationWarning)
+from .base import DELAYED, ExtensionHDU
+from .image import _ImageBaseHDU, ImageHDU
+from .table import BinTableHDU
 
 try:
     from pyfits import compression
@@ -163,7 +166,7 @@ class CompImageHeader(Header):
     def append(self, card=None, useblanks=True, bottom=False, end=False):
         # This logic unfortunately needs to be duplicated from the base class
         # in order to determine the keyword
-        if isinstance(card, basestring):
+        if isinstance(card, string_types):
             card = Card(card)
         elif isinstance(card, tuple):
             card = Card(*card)
@@ -198,7 +201,7 @@ class CompImageHeader(Header):
                 self.append(card, end=True)
                 return
 
-        if isinstance(card, basestring):
+        if isinstance(card, string_types):
             card = Card(card)
         elif isinstance(card, tuple):
             card = Card(*card)
@@ -588,7 +591,7 @@ class CompImageHDU(BinTableHDU):
                 warnings.warn('Keyword argument %s to %s is pending '
                               'deprecation; use %s instead' %
                               (oldarg, self.__class__.__name__, newarg),
-                              PendingDeprecationWarning)
+                              PyfitsPendingDeprecationWarning)
                 compression_opts[newarg] = kwargs[oldarg]
                 del kwargs[oldarg]
             else:
@@ -624,7 +627,7 @@ class CompImageHDU(BinTableHDU):
         self._scale_back = scale_back
 
         self._axes = [self._header.get('ZNAXIS' + str(axis + 1), 0)
-                      for axis in xrange(self._header.get('ZNAXIS', 0))]
+                      for axis in range(self._header.get('ZNAXIS', 0))]
 
         # store any scale factors from the table header
         if do_not_scale_image_data:
@@ -646,7 +649,7 @@ class CompImageHDU(BinTableHDU):
             return False
 
         xtension = card.value
-        if isinstance(xtension, basestring):
+        if isinstance(xtension, string_types):
             xtension = xtension.rstrip()
 
         if xtension not in ('BINTABLE', 'A3DTABLE'):
@@ -961,7 +964,7 @@ class CompImageHDU(BinTableHDU):
                     # user specified tile size is too small
                     raise ValueError('Hcompress minimum tile dimension is '
                                      '4 pixels')
-                major_dims = len(filter(lambda x: x > 1, tile_size))
+                major_dims = len([ts for ts in tile_size if ts > 1])
                 if major_dims > 2:
                     raise ValueError(
                         'HCOMPRESS can only support 2-dimensional tile sizes.'
@@ -1201,8 +1204,8 @@ class CompImageHDU(BinTableHDU):
                 # no dithering, rather than whatever DEFAULT_QUANTIZE_METHOD
                 # is set to
                 quantize_method = self._header.get('ZQUANTIZ', NO_DITHER)
-                if isinstance(quantize_method, basestring):
-                    for k, v in QUANTIZE_METHOD_NAMES.items():
+                if isinstance(quantize_method, string_types):
+                    for k, v in iteritems(QUANTIZE_METHOD_NAMES):
                         if v.upper() == quantize_method:
                             quantize_method = k
                             break

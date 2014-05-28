@@ -1,10 +1,12 @@
 import gzip
 
-from pyfits.file import _File
-from pyfits.hdu.base import NonstandardExtHDU
-from pyfits.hdu.hdulist import HDUList
-from pyfits.header import Header
-from pyfits.util import lazyproperty, BytesIO, fileobj_name, _pad_length
+from ..extern.six import string_types, BytesIO
+
+from ..file import _File
+from ..header import Header
+from ..util import lazyproperty, fileobj_name, _pad_length
+from .base import NonstandardExtHDU
+from .hdulist import HDUList
 
 
 class FitsHDU(NonstandardExtHDU):
@@ -100,13 +102,7 @@ class FitsHDU(NonstandardExtHDU):
 
         cards.append(('COMPRESS',  compress, 'Uses gzip compression'))
         header = Header(cards)
-        # TODO: This wrapping of the fileobj should probably be handled by
-        # cls.fromstring, though cls.fromstring itself has a strange
-        # implementation that I probably need to fix.  For example, it
-        # shouldn't care about fileobjs.  There should be a _BaseHDU.fromfile
-        # for that (there is _BaseHDU.readfrom which plays that role, but its
-        # semantics are also a little unclear...)
-        return cls.fromstring(header, fileobj=_File(bs))
+        return cls._readfrom_internal(_File(bs), header=header)
 
     @classmethod
     def match_header(cls, header):
@@ -122,7 +118,7 @@ class FitsHDU(NonstandardExtHDU):
         if card.keyword != 'XTENSION':
             return False
         xtension = card.value
-        if isinstance(xtension, basestring):
+        if isinstance(xtension, string_types):
             xtension = xtension.rstrip()
         return xtension == cls._extension
 

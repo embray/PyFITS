@@ -10,14 +10,14 @@ import warnings
 from collections import defaultdict
 from itertools import izip_longest
 
-from pyfits.card import Card, CardList, BLANK_CARD, KEYWORD_LENGTH, _pad
-from pyfits.file import _File
-from pyfits.util import (BLOCK_SIZE, deprecated, isiterable, encode_ascii,
-                         decode_ascii, fileobj_is_binary, fileobj_closed,
-                         _pad_length)
+from .extern.six import PY3, string_types, itervalues, iteritems, next
+from .extern.six.moves import zip, range, zip_longest
 
-
-PY3K = sys.version_info[:2] >= (3, 0)
+from .card import Card, CardList, KEYWORD_LENGTH, _pad
+from .file import _File
+from .util import (BLOCK_SIZE, deprecated, isiterable, encode_ascii,
+                   decode_ascii, fileobj_is_binary, fileobj_closed,
+                   _pad_length, PyfitsDeprecationWarning)
 
 
 # This regular expression can match a *valid* END card which just consists of
@@ -92,7 +92,7 @@ class Header(object):
             warnings.warn(
                 'The txtfile argument is deprecated.  Use Header.fromfile to '
                 'create a new Header object from a text file.',
-                DeprecationWarning)
+                PyfitsDeprecationWarning)
             # get the cards from the input ASCII file
             self.update(self.fromfile(txtfile))
             self._modified = False
@@ -132,7 +132,7 @@ class Header(object):
         elif self._haswildcard(key):
             return Header([copy.copy(self._cards[idx])
                            for idx in self._wildcardmatch(key)])
-        elif (isinstance(key, basestring) and
+        elif (isinstance(key, string_types) and
               key.upper() in Card._commentary_keywords):
             key = key.upper()
             # Special case for commentary cards
@@ -196,7 +196,7 @@ class Header(object):
             # the cards are deleted before updating _keyword_indices rather
             # than updating it once for each card that gets deleted]
             if isinstance(key, slice):
-                indices = xrange(*key.indices(len(self)))
+                indices = range(*key.indices(len(self)))
                 # If the slice step is backwards we want to reverse it, because
                 # it will be reversed in a few lines...
                 if key.step and key.step < 0:
@@ -206,7 +206,7 @@ class Header(object):
             for idx in reversed(indices):
                 del self[idx]
             return
-        elif isinstance(key, basestring):
+        elif isinstance(key, string_types):
             # delete ALL cards with the same keyword name
             key = Card.normalize_keyword(key)
             indices = self._keyword_indices
@@ -227,7 +227,7 @@ class Header(object):
                     'changed so that this raises a KeyError just like a dict '
                     'would. Please update your code so that KeyErrors are '
                     'caught and handled when deleting non-existent keywords.' %
-                    key, DeprecationWarning)
+                    key, PyfitsDeprecationWarning)
                 return
             for idx in reversed(indices[key]):
                 # Have to copy the indices list since it will be modified below
@@ -430,7 +430,7 @@ class Header(object):
         """
 
         close_file = False
-        if isinstance(fileobj, basestring):
+        if isinstance(fileobj, string_types):
             # Open in text mode by default to support newline handling; if a
             # binary-mode file object is passed in, the user is on their own
             # with respect to newline handling
@@ -438,35 +438,58 @@ class Header(object):
             close_file = True
 
         try:
-            return cls._fromfile_internal(fileobj, sep, endcard, padding)
+            is_binary = fileobj_is_binary(fileobj)
+
+            def block_iter(nbytes):
+                while True:
+                    data = fileobj.read(nbytes)
+
+                    if data:
+                        yield data
+                    else:
+                        break
+
+            return cls._from_blocks(block_iter, is_binary, sep, endcard,
+                                    padding)[1]
         finally:
             if close_file:
                 fileobj.close()
 
     @classmethod
-    def _fromfile_internal(cls, fileobj, sep, endcard, padding):
+    def _from_blocks(cls, block_iter, is_binary, sep, endcard, padding):
         """
         The meat of `Header.fromfile`; in a separate method so that
         `Header.fromfile` itself is just responsible for wrapping file
-        handling.
+        handling.  Also used by `_BaseHDU.fromstring`.
+
+        ``block_iter`` should be a callable which, given a block size n
+        (typically 2880 bytes as used by the FITS standard) returns an iterator
+        of byte strings of that block size.
+
+        ``is_binary`` specifies whether the returned blocks are bytes or text
+
+        Returns both the entire header *string*, and the `Header` object
+        returned by Header.fromstring on that string.
         """
 
-        is_binary = fileobj_is_binary(fileobj)
         actual_block_size = _block_size(sep)
         clen = Card.length + len(sep)
 
+        blocks = block_iter(actual_block_size)
+
         # Read the first header block.
-        block = fileobj.read(actual_block_size)
+        try:
+            block = next(blocks)
+        except StopIteration:
+            raise EOFError()
+
         if not is_binary:
             # TODO: There needs to be error handling at *this* level for
             # non-ASCII characters; maybe at this stage decoding latin-1 might
             # be safer
             block = encode_ascii(block)
 
-        if not block:
-            raise EOFError()
-
-        blocks = []
+        read_blocks = []
         is_eof = False
         end_found = False
 
@@ -475,12 +498,16 @@ class Header(object):
             # find the END card
             end_found, block = cls._find_end_card(block, clen)
 
-            blocks.append(decode_ascii(block))
+            read_blocks.append(decode_ascii(block))
 
             if end_found:
                 break
 
-            block = fileobj.read(actual_block_size)
+            try:
+                block = next(blocks)
+            except StopIteration:
+                is_eof = True
+                break
 
             if not block:
                 is_eof = True
@@ -494,11 +521,11 @@ class Header(object):
             # rather than raising an exception
             raise IOError('Header missing END card.')
 
-        blocks = ''.join(blocks)
+        header_str = ''.join(read_blocks)
 
         # Strip any zero-padding (see ticket #106)
-        if blocks and blocks[-1] == '\0':
-            if is_eof and blocks.strip('\0') == '':
+        if header_str and header_str[-1] == '\0':
+            if is_eof and header_str.strip('\0') == '':
                 # TODO: Pass this warning to validation framework
                 warnings.warn(
                     'Unexpected extra padding at the end of the file.  This '
@@ -512,17 +539,17 @@ class Header(object):
                     'Header block contains null bytes instead of spaces for '
                     'padding, and is not FITS-compliant. Nulls may be '
                     'replaced with spaces upon writing.')
-                blocks.replace('\0', ' ')
+                header_str.replace('\0', ' ')
 
-        if padding and (len(blocks) % actual_block_size) != 0:
+        if padding and (len(header_str) % actual_block_size) != 0:
             # This error message ignores the length of the separator for
             # now, but maybe it shouldn't?
-            actual_len = len(blocks) - actual_block_size + BLOCK_SIZE
+            actual_len = len(header_str) - actual_block_size + BLOCK_SIZE
             # TODO: Pass this error to validation framework
             raise ValueError('Header size is not multiple of %d: %d'
                              % (BLOCK_SIZE, actual_len))
 
-        return cls.fromstring(blocks, sep=sep)
+        return header_str, cls.fromstring(header_str, sep=sep)
 
     @classmethod
     def _find_end_card(cls, block, card_len):
@@ -892,7 +919,7 @@ class Header(object):
     def itervalues(self):
         """Like :meth:`dict.itervalues`."""
 
-        for _, v in self.iteritems():
+        for _, v in iteritems(self):
             yield v
 
     def keys(self):
@@ -932,7 +959,7 @@ class Header(object):
         """Similar to :meth:`dict.popitem`."""
 
         try:
-            k, v = self.iteritems().next()
+            k, v = next(iteritems(self))
         except StopIteration:
             raise KeyError('Header is empty')
         del self[k]
@@ -1079,7 +1106,7 @@ class Header(object):
                 "`header[keyword] = value` or "
                 "`header[keyword] = (value, comment)`.  header.set() is only "
                 "necessary to use if you also want to use the before/after "
-                "keyword arguments.", DeprecationWarning)
+                "keyword arguments.", PyfitsDeprecationWarning)
 
             for k, v in zip(legacy_args, args):
                 if k in kwargs:
@@ -1147,7 +1174,7 @@ class Header(object):
     def values(self):
         """Returns a list of the values of all cards in the header."""
 
-        return [v for _, v in self.iteritems()]
+        return [v for _, v in iteritems(self)]
 
     def append(self, card=None, useblanks=True, bottom=False, end=False):
         """
@@ -1184,7 +1211,7 @@ class Header(object):
 
         """
 
-        if isinstance(card, basestring):
+        if isinstance(card, string_types):
             card = Card(card)
         elif isinstance(card, tuple):
             card = Card(*card)
@@ -1195,7 +1222,7 @@ class Header(object):
                 'The value appended to a Header must be either a keyword or '
                 '(keyword, value, [comment]) tuple; got: %r' % card)
 
-        if not end and str(card) == BLANK_CARD:
+        if not end and card.is_blank:
             # Blank cards should always just be appended to the end
             end = True
 
@@ -1204,7 +1231,7 @@ class Header(object):
             idx = len(self._cards) - 1
         else:
             idx = len(self._cards) - 1
-            while idx >= 0 and str(self._cards[idx]) == BLANK_CARD:
+            while idx >= 0 and self._cards[idx].is_blank:
                 idx -= 1
 
             if not bottom and card.keyword not in Card._commentary_keywords:
@@ -1229,7 +1256,12 @@ class Header(object):
                 self._keyword_indices[keyword].sort()
 
             # Finally, if useblanks, delete a blank cards from the end
-            if useblanks:
+            if useblanks and self._countblanks():
+                # Don't do this unless there is at least one blanks at the end
+                # of the header; we need to convert the card to its string
+                # image to see how long it is.  In the vast majority of cases
+                # this will just be 80 (Card.length) but it may be longer for
+                # CONTINUE cards
                 self._useblanks(len(str(card)) // Card.length)
 
         self._modified = True
@@ -1319,7 +1351,7 @@ class Header(object):
                     extend_cards.append(card)
             else:
                 if unique or update and keyword in self:
-                    if str(card) == BLANK_CARD:
+                    if card.is_blank:
                         extend_cards.append(card)
                         continue
 
@@ -1387,7 +1419,7 @@ class Header(object):
 
         norm_keyword = Card.normalize_keyword(keyword)
 
-        for idx in xrange(start, stop, step):
+        for idx in range(start, stop, step):
             if self._cards[idx].keyword.upper() == norm_keyword:
                 return idx
         else:
@@ -1442,7 +1474,7 @@ class Header(object):
             self.append(card, end=True)
             return
 
-        if isinstance(card, basestring):
+        if isinstance(card, string_types):
             card = Card(card)
         elif isinstance(card, tuple):
             card = Card(*card)
@@ -1643,7 +1675,7 @@ class Header(object):
         # This used to just set key = (key, 0) and then go on to act as if the
         # user passed in a tuple, but it's much more common to just be given a
         # string as the key, so optimize more for that case
-        if isinstance(key, basestring):
+        if isinstance(key, string_types):
             keyword = key
             n = 0
         elif isinstance(key, int):
@@ -1656,7 +1688,7 @@ class Header(object):
         elif isinstance(key, slice):
             return key
         elif isinstance(key, tuple):
-            if (len(key) != 2 or not isinstance(key[0], basestring) or
+            if (len(key) != 2 or not isinstance(key[0], string_types) or
                     not isinstance(key[1], int)):
                 raise ValueError(
                     'Tuple indices must be 2-tuples consisting of a '
@@ -1778,7 +1810,7 @@ class Header(object):
         increment = 1 if increment else -1
 
         for index_sets in (self._keyword_indices, self._rvkc_indices):
-            for indices in index_sets.itervalues():
+            for indices in itervalues(index_sets):
                 for jdx, keyword_index in enumerate(indices):
                     if keyword_index >= idx:
                         indices[jdx] += increment
@@ -1786,14 +1818,14 @@ class Header(object):
     def _countblanks(self):
         """Returns the number of blank cards at the end of the Header."""
 
-        for idx in xrange(1, len(self._cards)):
-            if str(self._cards[-idx]) != BLANK_CARD:
+        for idx in range(1, len(self._cards)):
+            if not self._cards[-idx].is_blank:
                 return idx - 1
         return 0
 
     def _useblanks(self, count):
         for _ in range(count):
-            if str(self._cards[-1]) == BLANK_CARD:
+            if self._cards[-1].is_blank:
                 del self[-1]
             else:
                 break
@@ -1801,7 +1833,7 @@ class Header(object):
     def _haswildcard(self, keyword):
         """Return `True` if the input keyword contains a wildcard pattern."""
 
-        return (isinstance(keyword, basestring) and
+        return (isinstance(keyword, string_types) and
                 (keyword.endswith('...') or '*' in keyword or '?' in keyword))
 
     def _wildcardmatch(self, pattern):
@@ -1809,12 +1841,12 @@ class Header(object):
         Returns a list of indices of the cards matching the given wildcard
         pattern.
 
-         * '*' matches 0 or more alphanumeric characters or _
-         * '?' matches a single alphanumeric character or _
+         * '*' matches 0 or more characters
+         * '?' matches a single character
          * '...' matches 0 or more of any non-whitespace character
         """
 
-        pattern = pattern.replace('*', r'\w*').replace('?', r'\w')
+        pattern = pattern.replace('*', r'.*').replace('?', r'.')
         pattern = pattern.replace('...', r'\S*') + '$'
         pattern_re = re.compile(pattern, re.I)
 
@@ -1832,7 +1864,7 @@ class Header(object):
             else:
                 indices = self._wildcardmatch(key)
 
-            if isinstance(value, basestring) or not isiterable(value):
+            if isinstance(value, string_types) or not isiterable(value):
                 value = itertools.repeat(value, len(indices))
 
             for idx, val in zip(indices, value):
@@ -1934,7 +1966,7 @@ class Header(object):
 
     # Some fixes for compatibility with the Python 3 dict interface, where
     # iteritems -> items, etc.
-    if PY3K:  # pragma: py3
+    if PY3:  # pragma: py3
         keys = iterkeys
         values = itervalues
         items = iteritems
@@ -2098,13 +2130,13 @@ class _CardAccessor(object):
     def __eq__(self, other):
         # If the `other` item is a scalar we will still treat it as equal if
         # this _CardAccessor only contains one item
-        if not isiterable(other) or isinstance(other, basestring):
+        if not isiterable(other) or isinstance(other, string_types):
             if len(self) == 1:
                 other = [other]
             else:
                 return False
 
-        for a, b in izip_longest(self, other):
+        for a, b in zip_longest(self, other):
             if a != b:
                 return False
         else:
@@ -2189,10 +2221,10 @@ class _HeaderCommentaryCards(_CardAccessor):
     # __len__ and __iter__ need to be overridden from the base class due to the
     # different approach this class has to take for slicing
     def __len__(self):
-        return len(xrange(*self._indices))
+        return len(range(*self._indices))
 
     def __iter__(self):
-        for idx in xrange(*self._indices):
+        for idx in range(*self._indices):
             yield self._header[(self._keyword, idx)]
 
     def __repr__(self):
@@ -2206,7 +2238,7 @@ class _HeaderCommentaryCards(_CardAccessor):
         elif not isinstance(idx, int):
             raise ValueError('%s index must be an integer' % self._keyword)
 
-        idx = range(*self._indices)[idx]
+        idx = list(range(*self._indices))[idx]
         return self._header[(self._keyword, idx)]
 
     def __setitem__(self, item, value):

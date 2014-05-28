@@ -1,5 +1,4 @@
-from __future__ import division  # confidence high
-from __future__ import with_statement
+from __future__ import division, with_statement
 
 import gzip
 import mmap
@@ -11,12 +10,14 @@ import zipfile
 
 import numpy as np
 
+from ..extern.six import BytesIO
+
 import pyfits as fits
-from pyfits.convenience import _getext
-from pyfits.file import _File
-from pyfits.util import BytesIO
-from pyfits.tests import PyfitsTestCase
-from pyfits.tests.util import catch_warnings, ignore_warnings, CaptureStdio
+from ..convenience import _getext
+from ..file import _File
+from ..util import PyfitsDeprecationWarning
+from . import PyfitsTestCase
+from .util import catch_warnings, ignore_warnings, CaptureStdio
 
 from nose.tools import assert_raises
 
@@ -49,7 +50,7 @@ class TestCore(PyfitsTestCase):
 
         c = fits.Column(name='foo', format='i2', bscale=1, bzero=32768,
                         array=n)
-        t = fits.new_table([c])
+        t = fits.BinTableHDU.from_columns([c])
 
         l.append(p)
         l.append(t)
@@ -95,6 +96,7 @@ class TestCore(PyfitsTestCase):
                 assert table.data.dtype.names == ('c2', 'c4', 'foo')
                 assert table.columns.names == ['c2', 'c4', 'foo']
 
+    @ignore_warnings(PyfitsDeprecationWarning)
     def test_update_header_card(self):
         """A very basic test for the Header.update method--I'd like to add a
         few more cases to this at some point.
@@ -121,6 +123,7 @@ class TestCore(PyfitsTestCase):
         header.update('BITPIX', 16, 'foobarbaz', savecomment=True)
         assert header.ascard['BITPIX'].comment == comment
 
+    @ignore_warnings(PyfitsDeprecationWarning)
     def test_set_card_value(self):
         """Similar to test_update_header_card(), but tests the the
         `header['FOO'] = 'bar'` method of updating card values.
@@ -147,6 +150,7 @@ class TestCore(PyfitsTestCase):
         assert hdulist_i[1].data.dtype == np.uint16
         assert np.all(hdulist_f[1].data == hdulist_i[1].data)
 
+    @ignore_warnings(PyfitsDeprecationWarning)
     def test_fix_missing_card_append(self):
         hdu = fits.ImageHDU()
         errs = hdu.req_cards('TESTKW', None, None, 'foo', 'silentfix', [])
@@ -167,7 +171,7 @@ class TestCore(PyfitsTestCase):
         errs = hdu.req_cards('TESTKW', None, lambda v: v == 'bar', 'bar',
                              'exception', [])
         assert len(errs) == 1
-        assert errs[0] == "'TESTKW' card has invalid value 'foo'."
+        assert errs[0][1] == "'TESTKW' card has invalid value 'foo'."
 
         # See if fixing will work
         hdu.req_cards('TESTKW', None, lambda v: v == 'bar', 'bar', 'silentfix',
@@ -198,15 +202,89 @@ class TestCore(PyfitsTestCase):
             del hdu.header['NAXIS']
             try:
                 hdu.verify('ignore')
-            except Exception, e:
+            except Exception:
+                exc = sys.exc_info()[1]
                 self.fail('An exception occurred when the verification error '
-                          'should have been ignored: %s' % e)
+                          'should have been ignored: %s' % exc)
         # Make sure the error wasn't fixed either, silently or otherwise
         assert 'NAXIS' not in hdu.header
 
     def test_unrecognized_verify_option(self):
         hdu = fits.ImageHDU()
         assert_raises(ValueError, hdu.verify, 'foobarbaz')
+
+    def test_combined_verify_options(self):
+        """
+        Test verify options like fix+ignore.
+        """
+
+        def make_invalid_hdu():
+            hdu = fits.ImageHDU()
+            # Add one keyword to the header that contains a fixable defect, and one
+            # with an unfixable defect
+            c1 = fits.Card.fromstring("test    = '    test'")
+            c2 = fits.Card.fromstring("P.I.    = '  Hubble'")
+            hdu.header.append(c1)
+            hdu.header.append(c2)
+            return hdu
+
+        # silentfix+ignore should be completely silent
+        hdu = make_invalid_hdu()
+        with catch_warnings():
+            warnings.simplefilter('error')
+            try:
+                hdu.verify('silentfix+ignore')
+            except Exception:
+                exc = sys.exc_info()[1]
+                self.fail('An exception occurred when the verification error '
+                          'should have been ignored: %s' % exc)
+
+        # silentfix+warn should be quiet about the fixed HDU and only warn
+        # about the unfixable one
+        hdu = make_invalid_hdu()
+        with catch_warnings(record=True) as w:
+            hdu.verify('silentfix+warn')
+            assert len(w) == 4
+            assert 'Illegal keyword name' in str(w[2].message)
+
+        # silentfix+exception should only mention the unfixable error in the
+        # exception
+        hdu = make_invalid_hdu()
+        try:
+            hdu.verify('silentfix+exception')
+        except fits.VerifyError:
+            exc = sys.exc_info()[1]
+            assert 'Illegal keyword name' in str(exc)
+            assert 'not upper case' not in str(exc)
+        else:
+            self.fail('An exception should have been raised.')
+
+        # fix+ignore is not too useful, but it should warn about the fixed
+        # problems while saying nothing about the unfixable problems
+        hdu = make_invalid_hdu()
+        with catch_warnings(record=True) as w:
+            hdu.verify('fix+ignore')
+            assert len(w) == 4
+            assert 'not upper case' in str(w[2].message)
+
+        # fix+warn
+        hdu = make_invalid_hdu()
+        with catch_warnings(record=True) as w:
+            hdu.verify('fix+warn')
+            assert len(w) == 6
+            assert 'not upper case' in str(w[2].message)
+            assert 'Illegal keyword name' in str(w[4].message)
+
+        # fix+exception
+        hdu = make_invalid_hdu()
+        try:
+            hdu.verify('fix+exception')
+        except fits.VerifyError:
+            exc = sys.exc_info()[1]
+            assert 'Illegal keyword name' in str(exc)
+            assert 'not upper case' in str(exc)
+        else:
+            self.fail('An exception should have been raised.')
 
     def test_getext(self):
         """
@@ -317,7 +395,7 @@ class TestCore(PyfitsTestCase):
 
     def test_nonstandard_hdu(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/157
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/157
 
         Tests that "Nonstandard" HDUs with SIMPLE = F are read and written
         without prepending a superfluous and unwanted standard primary HDU.
@@ -402,6 +480,39 @@ class TestCore(PyfitsTestCase):
         assert_raises(TypeError, setattr, h1, 'ver', 'FOO')
         assert_raises(TypeError, setattr, h1, 'level', 'BAR')
 
+    def test_consecutive_writeto(self):
+        """
+        Regression test for an issue where calling writeto twice on the same
+        HDUList could write a corrupted file.
+
+        https://github.com/spacetelescope/PyFITS/issues/40 is actually a
+        particular instance of this problem, though isn't unique to sys.stdout.
+        """
+
+        with fits.open(self.data('test0.fits')) as hdul1:
+            # Add a bunch of header keywords so that the data will be forced to
+            # new offsets within the file:
+            for idx in range(40):
+                hdul1[1].header['TEST%d' % idx] = 'test'
+
+            hdul1.writeto(self.temp('test1.fits'))
+            hdul1.writeto(self.temp('test2.fits'))
+
+            # Open a second handle to the original file and compare it to hdul1
+            # (We only compare part of the one header that was modified)
+            # Compare also with the second writeto output
+            with fits.open(self.data('test0.fits')) as hdul2:
+                with fits.open(self.temp('test2.fits')) as hdul3:
+                    for hdul in (hdul1, hdul3):
+                        for idx, hdus in enumerate(zip(hdul1, hdul)):
+                            hdu1, hdu2 = hdus
+                            if idx != 1:
+                                assert hdu1.header == hdu2.header
+                            else:
+                                assert (hdu1.header ==
+                                        hdu2.header[:len(hdu1.header)])
+                            assert np.all(hdu1.data == hdu2.data)
+
 
 class TestConvenienceFunctions(PyfitsTestCase):
     def test_writeto(self):
@@ -418,9 +529,10 @@ class TestConvenienceFunctions(PyfitsTestCase):
         assert len(hdul) == 1
         assert (data == hdul[0].data).all()
 
+    @ignore_warnings(PyfitsDeprecationWarning)
     def test_writeto_2(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/107
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/107
 
         Test of `writeto()` with a trivial header containing a single keyword.
         """
@@ -450,8 +562,9 @@ class TestFileFunctions(PyfitsTestCase):
 
         try:
             fits.open(self.temp('foobar.fits'))
-        except IOError, e:
-            assert 'File does not exist' in str(e)
+        except IOError:
+            exc = sys.exc_info()[1]
+            assert 'File does not exist' in str(exc)
         except:
             raise
 
@@ -560,7 +673,7 @@ class TestFileFunctions(PyfitsTestCase):
             gf.close()
 
     def test_open_gzip_file_for_writing(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/195."""
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/195."""
 
         gf = self._make_gzip_file()
         with fits.open(gf, mode='update') as h:
@@ -582,7 +695,7 @@ class TestFileFunctions(PyfitsTestCase):
 
     def test_updated_file_permissions(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/79
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/79
 
         Tests that when a FITS file is modified in update mode, the file
         permissions are preserved.

@@ -13,34 +13,44 @@ import threading
 import warnings
 
 try:
-    from functools import reduce
-except ImportError:
-    # Python 2.5 only has reduce as a builtin
-    from __builtin__ import reduce
-
-try:
     import io
 except ImportError:
     io = None
 
 try:
-    try:
-        from cStringIO import StringIO
-    except ImportError:
-        from StringIO import StringIO
+    from StringIO import StringIO
 except ImportError:
-    from io import StringIO
-
-try:
-    from io import BytesIO
-except ImportError:
-    BytesIO = StringIO
-
+    class StringIO(object):
+        pass
 
 import numpy as np
 
+from .extern.six import (PY3, iteritems, string_types, integer_types,
+                         text_type, binary_type, next)
+from .extern.six.moves import zip, reduce
+
 
 BLOCK_SIZE = 2880  # the FITS block size
+
+
+if PY3:
+    cmp = lambda a, b: (a > b) - (a < b)
+else:
+    cmp = cmp
+
+
+def first(iterable):
+    """
+    Returns the first item returned by iterating over an iterable object.
+
+    Example:
+
+    >>> a = [1, 2, 3]
+    >>> first(a)
+    1
+    """
+
+    return next(iter(iterable))
 
 
 def itersubclasses(cls, _seen=None):
@@ -103,36 +113,34 @@ class lazyproperty(object):
             self.__doc__ = fget.__doc__
         else:
             self.__doc__ = doc
+        self._key = self._fget.__name__
 
     def __get__(self, obj, owner=None):
         if obj is None:
             return self
-        key = self._fget.func_name
-        if key not in obj.__dict__:
+        try:
+            return obj.__dict__[self._key]
+        except KeyError:
             val = self._fget(obj)
-            obj.__dict__[key] = val
+            obj.__dict__[self._key] = val
             return val
-        else:
-            return obj.__dict__[key]
 
     def __set__(self, obj, val):
         obj_dict = obj.__dict__
-        func_name = self._fget.func_name
         if self._fset:
             ret = self._fset(obj, val)
-            if ret is not None and obj_dict.get(func_name) is ret:
+            if ret is not None and obj_dict.get(self._key) is ret:
                 # By returning the value set the setter signals that it took
                 # over setting the value in obj.__dict__; this mechanism allows
                 # it to override the input value
                 return
-        obj_dict[func_name] = val
+        obj_dict[self._key] = val
 
     def __delete__(self, obj):
         if self._fdel:
             self._fdel(obj)
-        key = self._fget.func_name
-        if key in obj.__dict__:
-            del obj.__dict__[key]
+        if self._key in obj.__dict__:
+            del obj.__dict__[self._key]
 
     def getter(self, fget):
         return self.__ter(fget, 0)
@@ -147,7 +155,7 @@ class lazyproperty(object):
         args = [self._fget, self._fset, self._fdel, self.__doc__]
         args[arg] = f
         cls_ns = sys._getframe(1).f_locals
-        for k, v in cls_ns.iteritems():
+        for k, v in iteritems(cls_ns):
             if v is self:
                 property_name = k
                 break
@@ -155,6 +163,14 @@ class lazyproperty(object):
         cls_ns[property_name] = lazyproperty(*args)
 
         return cls_ns[property_name]
+
+
+class PyfitsDeprecationWarning(UserWarning):
+    pass
+
+
+class PyfitsPendingDeprecationWarning(UserWarning):
+    pass
 
 
 # TODO: Provide a class deprecation marker as well.
@@ -191,8 +207,8 @@ def deprecated(since, message='', name='', alternative='', pending=False):
         this alternative if provided.
 
     pending : bool, optional
-        If True, uses a PendingDeprecationWarning instead of a
-        DeprecationWarning.
+        If True, uses a PyfitsPendingDeprecationWarning instead of a
+        PyfitsDeprecationWarning.
 
     """
 
@@ -226,20 +242,21 @@ def deprecated(since, message='', name='', alternative='', pending=False):
                 message = ('The %(func)s function will be deprecated in a '
                            'future version.')
             else:
-                message = ('The %(func)s function is deprecated and may '
-                           'be removed in a future version.')
+                message = (
+                    'The %(func)s function is deprecated as of version '
+                    '%(since)s and may be removed in a future version.')
             if alternative:
-                altmessage = '\n        Use %s instead.' % alternative
+                altmessage = '\n\n        Use %s instead.' % alternative
 
-        message = ((message % {'func': name, 'alternative': alternative}) +
-                   altmessage)
+        message = ((message % {'func': name, 'alternative': alternative,
+                               'since': since}) + altmessage)
 
         @functools.wraps(func)
         def deprecated_func(*args, **kwargs):
             if pending:
-                category = PendingDeprecationWarning
+                category = PyfitsPendingDeprecationWarning
             else:
-                category = DeprecationWarning
+                category = PyfitsDeprecationWarning
 
             warnings.warn(message, category, stacklevel=2)
 
@@ -328,7 +345,7 @@ def pairwise(iterable):
         # Just a little trick to advance b without having to catch
         # StopIter if b happens to be empty
         break
-    return itertools.izip(a, b)
+    return zip(a, b)
 
 
 def isiterable(obj):
@@ -445,7 +462,7 @@ def fileobj_name(f):
     string f itself is returned.
     """
 
-    if isinstance(f, basestring):
+    if isinstance(f, string_types):
         return f
     elif hasattr(f, 'name'):
         return f.name
@@ -694,7 +711,7 @@ def translate(s, table, deletechars):
 
     if isinstance(s, str):
         return s.translate(table, deletechars)
-    elif isinstance(s, unicode):
+    elif isinstance(s, text_type):
         table = dict((x, ord(table[x])) for x in range(256)
                      if ord(table[x]) != x)
         for c in deletechars:
@@ -753,7 +770,14 @@ def _array_to_file(arr, outfile):
         # treat as file-like object with "write" method and write the array
         # via its buffer interface
         def write(a, f):
-            f.write(a.flatten().view(np.ubyte))
+            # StringIO in Python 2.5 asks 'if not s' which fails for a Numpy
+            # array; test ahead of time if the array is empty, and pass in the
+            # array buffer directly
+            if isinstance(f, StringIO):
+                if len(a):
+                    f.write(a.data)
+            else:
+                f.write(a)
 
     # Implements a workaround for a bug deep in OSX's stdlib file writing
     # functions; on 64-bit OSX it is not possible to correctly write a number
@@ -785,10 +809,13 @@ def _write_string(f, s):
     # binary
     binmode = fileobj_is_binary(f)
 
-    if binmode and isinstance(s, unicode):
+    if binmode and isinstance(s, text_type):
         s = encode_ascii(s)
-    elif not binmode and not isinstance(f, unicode):
+    elif not binmode and not isinstance(f, text_type):
         s = decode_ascii(s)
+    elif isinstance(f, StringIO) and isinstance(s, np.ndarray):
+        # Workaround for StringIO/ndarray incompatibility
+        s = s.data
     f.write(s)
 
 
@@ -805,7 +832,7 @@ def _convert_array(array, dtype):
             (np.issubdtype(array.dtype, np.number) and
              np.issubdtype(dtype, np.number))):
         # Includes a special case when both dtypes are at least numeric to
-        # account for ticket #218: https://trac.assembla.com/pyfits/ticket/218
+        # account for ticket #218: https://aeon.stsci.edu/ssb/trac/pyfits/ticket/218
         return array.view(dtype)
     else:
         return array.astype(dtype)
@@ -826,7 +853,7 @@ def _is_pseudo_unsigned(dtype):
 
 
 def _is_int(val):
-    return isinstance(val, (int, long, np.integer))
+    return isinstance(val, integer_types + (np.integer,))
 
 
 def _str_to_num(val):
@@ -903,7 +930,7 @@ def _words_group(input, strlen):
     words = []
     nblanks = input.count(' ')
     nmax = max(nblanks, len(input) // strlen + 1)
-    arr = np.fromstring((input + ' '), dtype=(bytes, 1))
+    arr = np.fromstring((input + ' '), dtype=(binary_type, 1))
 
     # locations of the blanks
     blank_loc = np.nonzero(arr == ' '.encode('latin1'))[0]
@@ -996,7 +1023,7 @@ if sys.version_info[:2] < (2, 6):
             args = [self.fget, self.fset, self.fdel, self.__doc__]
             args[arg] = f
             cls_ns = sys._getframe(1).f_locals
-            for k, v in cls_ns.iteritems():
+            for k, v in iteritems(cls_ns):
                 if v is self:
                     property_name = k
                     break
@@ -1005,3 +1032,28 @@ if sys.version_info[:2] < (2, 6):
 
             return cls_ns[property_name]
     __builtin__.property = property
+
+
+    # Provide an implementation of izip_longest
+    class ZipExhausted(Exception):
+        pass
+
+    def izip_longest(*args, **kwds):
+        # izip_longest('ABCD', 'xy', fillvalue='-') --> Ax By C- D-
+        fillvalue = kwds.get('fillvalue')
+        counter = [len(args) - 1]
+        def sentinel():
+            if not counter[0]:
+                raise ZipExhausted
+            counter[0] -= 1
+            yield fillvalue
+        fillers = itertools.repeat(fillvalue)
+        iterators = [itertools.chain(it, sentinel(), fillers) for it in args]
+        try:
+            while iterators:
+                yield tuple(map(next, iterators))
+        except ZipExhausted:
+            pass
+
+    from .extern import six
+    six.moves.zip_longest = izip_longest

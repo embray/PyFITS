@@ -1,13 +1,17 @@
 import copy
 import re
+import sys
 import warnings
 
 import numpy as np
 
+from .extern.six import string_types, integer_types, text_type, binary_type
+from .extern.six.moves import range
+
 import pyfits
-from pyfits.util import (_str_to_num, _is_int, deprecated, maketrans,
-                         translate, _words_group)
-from pyfits.verify import _Verify, _ErrList, VerifyError, VerifyWarning
+from .util import (_str_to_num, _is_int, deprecated, maketrans, translate,
+                   _words_group, PyfitsDeprecationWarning)
+from .verify import _Verify, _ErrList, VerifyError, VerifyWarning
 
 
 __all__ = ['Card', 'CardList', 'create_card', 'create_card_from_string',
@@ -63,7 +67,7 @@ class CardList(list):
                 'functionality has been subsumed by the Header class, so '
                 'CardList objects should not be directly created.  See the '
                 'PyFITS 3.1.0 CHANGELOG for more details.',
-                DeprecationWarning)
+                PyfitsDeprecationWarning)
 
         # This is necessary for now to prevent a circular import
         from pyfits.header import Header
@@ -254,7 +258,7 @@ class CardList(list):
 
         # Backward is just ignored now, since the search is not linear anyways
 
-        if _is_int(key) or isinstance(key, basestring):
+        if _is_int(key) or isinstance(key, string_types):
             return self._header._cardindex(key)
         else:
             raise KeyError('Illegal key data type %s' % type(key))
@@ -479,7 +483,7 @@ class Card(_Verify):
         if self._keyword is not None:
             raise AttributeError(
                 'Once set, the Card keyword may not be modified')
-        elif isinstance(keyword, basestring):
+        elif isinstance(keyword, string_types):
             # Be nice and remove trailing whitespace--some FITS code always
             # pads keywords out with spaces; leading whitespace, however,
             # should be strictly disallowed.
@@ -511,7 +515,8 @@ class Card(_Verify):
                     # also displayed
                     warnings.warn(
                         'Keyword name %r is greater than 8 characters or '
-                        'or contains spaces; a HIERARCH card will be created.' %
+                        'contains characters not allowed by the FITS '
+                        'standard; a HIERARCH card will be created.' %
                         keyword, VerifyWarning)
             else:
                 raise ValueError('Illegal keyword name: %r.' % keyword)
@@ -540,7 +545,7 @@ class Card(_Verify):
         else:
             self._value = value = ''
 
-        if pyfits.STRIP_HEADER_WHITESPACE and isinstance(value, basestring):
+        if pyfits.STRIP_HEADER_WHITESPACE and isinstance(value, string_types):
             value = value.rstrip()
 
         return value
@@ -558,23 +563,23 @@ class Card(_Verify):
         if oldvalue is None:
             oldvalue = ''
 
-        if not isinstance(value, (basestring, int, long, float, complex, bool,
-                                  Undefined, np.floating, np.integer,
-                                  np.complexfloating, np.bool_)):
+        if not isinstance(value, string_types + integer_types +
+                                 (float, complex, bool, Undefined, np.floating,
+                                  np.integer, np.complexfloating, np.bool_)):
             raise ValueError('Illegal value: %r.' % value)
 
         if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
             raise ValueError(
                 "Floating point %r values are not allowed in FITS headers." %
                 value)
-        elif isinstance(value, unicode):
+        elif isinstance(value, text_type):
             m = self._ascii_text_re.match(value)
             if not m:
                 raise ValueError(
                     'FITS header values must contain standard printable ASCII '
                     'characters; %r contains characters not representable in '
                     'ASCII or non-printable characters.' % value)
-        elif isinstance(value, bytes):
+        elif isinstance(value, binary_type):
             # Allow str, but only if they can be decoded to ASCII text; note
             # this is not even allowed on Python 3 since the `bytes` type is
             # not included in `six.string_types`.  Presently we simply don't
@@ -599,8 +604,8 @@ class Card(_Verify):
             value = bool(value)
 
         if (pyfits.STRIP_HEADER_WHITESPACE and
-            (isinstance(oldvalue, basestring) and
-             isinstance(value, basestring))):
+            (isinstance(oldvalue, string_types) and
+             isinstance(value, string_types))):
             # Ignore extra whitespace when comparing the new value to the old
             different = oldvalue.rstrip() != value.rstrip()
         elif isinstance(oldvalue, bool) or isinstance(value, bool):
@@ -688,7 +693,7 @@ class Card(_Verify):
         if comment is None:
             comment = ''
 
-        if isinstance(comment, unicode):
+        if isinstance(comment, text_type):
             m = self._ascii_text_re.match(comment)
             if not m:
                 raise ValueError(
@@ -760,6 +765,27 @@ class Card(_Verify):
         if self._image is None or self._modified:
             self._image = self._format_image()
         return self._image
+
+    @property
+    def is_blank(self):
+        """
+        `True` if the card is completely blank--that is, it has no keyword,
+        value, or comment.  It appears in the header as 80 spaces.
+
+        Returns `False` otherwise.
+        """
+
+        if not self._verified:
+            # The card image has not been parsed yet; compare directly with the
+            # string representation of a blank card
+            return self._image == BLANK_CARD
+
+        # If the keyword, value, and comment are all empty (for self.value
+        # explicitly check that it is a string value, since a blank value is
+        # returned as '')
+        return (not self.keyword and
+                (isinstance(self.value, string_types) and not self.value) and
+                not self.comment)
 
     @property
     @deprecated('3.1', alternative='the `.image` attribute')
@@ -849,7 +875,7 @@ class Card(_Verify):
             self._check_if_rvkc_image(*args)
         elif len(args) == 2:
             keyword, value = args
-            if not isinstance(keyword, basestring):
+            if not isinstance(keyword, string_types):
                 return False
             if keyword in self._commentary_keywords:
                 return False
@@ -861,7 +887,7 @@ class Card(_Verify):
 
             # Testing for ': ' is a quick way to avoid running the full regular
             # expression, speeding this up for the majority of cases
-            if isinstance(value, basestring) and value.find(': ') > 0:
+            if isinstance(value, string_types) and value.find(': ') > 0:
                 match = self._rvkc_field_specifier_val_RE.match(value)
                 if match and self._keywd_FSC_RE.match(keyword):
                     self._init_rvkc(keyword, match.group('keyword'), value,
@@ -937,9 +963,6 @@ class Card(_Verify):
 
                 keyword_upper = keyword_upper[:val_ind_idx]
 
-            if keyword_upper != keyword:
-                self._modified = True
-
             return keyword_upper
         elif (keyword_upper == 'HIERARCH' and self._image[8] == ' ' and
               HIERARCH_VALUE_INDICATOR in self._image):
@@ -985,7 +1008,7 @@ class Card(_Verify):
 
         if m is None:
             raise VerifyError("Unparsable card (%s), fix it first with "
-                              ".verify('fix')." % self.key)
+                              ".verify('fix')." % self.keyword)
 
         if m.group('bool') is not None:
             value = m.group('bool') == 'T'
@@ -1215,7 +1238,7 @@ class Card(_Verify):
             # longstring case (CONTINUE card)
             # try not to use CONTINUE if the string value can fit in one line.
             # Instead, just truncate the comment
-            if (isinstance(self.value, basestring) and
+            if (isinstance(self.value, string_types) and
                 len(value) > (self.length - 10)):
                 output = self._format_long_image()
             else:
@@ -1307,18 +1330,24 @@ class Card(_Verify):
                 self._hierarch):
             pass
         else:
+            if self._image:
+                # PyFITS will auto-uppercase any standard keyword, so lowercase
+                # keywords can only occur if they came from the wild
+                keyword = self._split()[0]
+                if keyword != keyword.upper():
+                # Keyword should be uppercase unless it's a HIERARCH card
+                    errs.append(self.run_option(
+                        option,
+                        err_text='Card keyword %r is not upper case.' %
+                                  keyword,
+                        fix_text=fix_text,
+                        fix=self._fix_keyword))
+
             keyword = self.keyword
             if self.field_specifier:
                 keyword = keyword.split('.', 1)[0]
 
-            if keyword != keyword.upper():
-            # Keyword should be uppercase unless it's a HIERARCH card
-                errs.append(self.run_option(
-                    option,
-                    err_text='Card keyword %r is not upper case.' % keyword,
-                    fix_text=fix_text,
-                    fix=self._fix_keyword))
-            elif not self._keywd_FSC_RE.match(keyword):
+            if not self._keywd_FSC_RE.match(keyword):
                 errs.append(self.run_option(
                     option,
                     err_text='Illegal keyword name %s' % repr(keyword),
@@ -1342,7 +1371,7 @@ class Card(_Verify):
                 errs.append(self.run_option(
                     option,
                     err_text='Card %r is not FITS standard (invalid value '
-                             'string: %s).' % (self.keyword, valuecomment),
+                             'string: %r).' % (self.keyword, valuecomment),
                     fix_text=fix_text,
                     fix=self._fix_value))
 
@@ -1370,7 +1399,7 @@ class Card(_Verify):
 
         ncards = len(self._image) // Card.length
 
-        for idx in xrange(0, Card.length * ncards, Card.length):
+        for idx in range(0, Card.length * ncards, Card.length):
             card = Card.fromstring(self._image[idx:idx + Card.length])
             if idx > 0 and card.keyword.upper() != 'CONTINUE':
                 raise VerifyError(
@@ -1426,8 +1455,9 @@ def _int_or_float(s):
     except (ValueError, TypeError):
         try:
             return float(s)
-        except (ValueError, TypeError), e:
-            raise ValueError(str(e))
+        except (ValueError, TypeError):
+            exc = sys.exc_info()[1]
+            raise ValueError(*exc.args)
 
 
 def _format_value(value):
@@ -1438,7 +1468,7 @@ def _format_value(value):
 
     # string value should occupies at least 8 columns, unless it is
     # a null string
-    if isinstance(value, basestring):
+    if isinstance(value, string_types):
         if value == '':
             return "''"
         else:

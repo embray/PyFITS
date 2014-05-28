@@ -158,9 +158,10 @@ def verify_compliance(filename):
     hdulist = pyfits.open(filename)
     try:
         hdulist.verify('exception')
-    except pyfits.VerifyError, e:
+    except pyfits.VerifyError:
+        exc = sys.exc_info()[1]
         log.warn('NONCOMPLIANT %r .. %s' %
-                 (filename), str(e).replace('\n', ' '))
+                 (filename), str(exc).replace('\n', ' '))
         return 1
     return 0
 
@@ -198,8 +199,9 @@ def process_file(filename):
         if OPTIONS.write_file and checksum_errors == 0 or OPTIONS.force:
             update(filename)
         return checksum_errors + compliance_errors
-    except Exception, e:
-        log.error('EXCEPTION %r .. %s' % (filename, e))
+    except Exception:
+        exc = sys.exc_info()[1]
+        log.error('EXCEPTION %r .. %s' % (filename, exc))
         return 1
 
 

@@ -8,8 +8,8 @@ import numpy as np
 from nose.tools import assert_raises
 
 import pyfits as fits
-from pyfits.tests import PyfitsTestCase
-from pyfits.tests.test_table import comparerecords
+from . import PyfitsTestCase
+from .test_table import comparerecords
 
 
 class TestGroupsFunctions(PyfitsTestCase):
@@ -62,7 +62,7 @@ class TestGroupsFunctions(PyfitsTestCase):
 
     def test_parnames_round_trip(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/130
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/130
 
         Ensures that opening a random groups file in update mode or writing it
         to a new file does not cause any change to the parameter names.

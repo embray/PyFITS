@@ -1,8 +1,7 @@
 # -*- coding: utf8 -*-
-from __future__ import division  # confidence high
-from __future__ import with_statement
 
-import itertools
+from __future__ import division, with_statement
+
 import sys
 import warnings
 
@@ -10,10 +9,13 @@ import numpy as np
 
 import pyfits as fits
 
-from pyfits.card import _pad
-from pyfits.util import encode_ascii, _pad_length, BLOCK_SIZE, StringIO
-from pyfits.tests import PyfitsTestCase
-from pyfits.tests.util import catch_warnings, ignore_warnings, CaptureStdio
+from ..extern.six import u, b, iterkeys, itervalues, iteritems, StringIO, PY3
+from ..extern.six.moves import zip, range
+
+from ..card import _pad
+from ..util import encode_ascii, _pad_length, BLOCK_SIZE
+from . import PyfitsTestCase
+from .util import catch_warnings, ignore_warnings, CaptureStdio
 
 from nose.tools import assert_raises
 
@@ -29,9 +31,17 @@ class TestOldApiHeaderFunctions(PyfitsTestCase):
     This tests backward compatibility support for those interfaces.
     """
 
+    def setup(self):
+        super(TestOldApiHeaderFunctions, self).setup()
+        fits.ignore_deprecation_warnings()
+
+    def teardown(self):
+        warnings.resetwarnings()
+        super(TestOldApiHeaderFunctions, self).teardown()
+
     def test_ascardimage_verifies_the_comment_string_to_be_ascii_text(self):
         # the ascardimage() verifies the comment string to be ASCII text
-        c = fits.Card.fromstring('abc     = +  2.1   e + 12 / abcde\0')
+        c = fits.Card.fromstring('ABC     = +  2.1   e + 12 / abcde\0')
         assert_raises(Exception, c.ascardimage)
 
     def test_rename_key(self):
@@ -159,7 +169,7 @@ class TestOldApiHeaderFunctions(PyfitsTestCase):
 
     def test_assign_boolean(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/123
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/123
 
         Tests assigning Python and Numpy boolean values to keyword values.
         """
@@ -191,7 +201,7 @@ class TestOldApiHeaderFunctions(PyfitsTestCase):
         assert h.ascard['BAR'].cardimage == barimg
 
     def test_cardlist_list_methods(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/190"""
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/190"""
 
         header = fits.Header()
         header.update('A', 'B', 'C')
@@ -219,7 +229,11 @@ class TestHeaderFunctions(PyfitsTestCase):
         """Test Card constructor with default argument values."""
 
         c = fits.Card()
-        assert '' == c.key
+
+        with ignore_warnings():
+            assert '' == c.key
+
+        assert '' == c.keyword
 
     def test_string_value_card(self):
         """Test Card constructor with string value"""
@@ -235,7 +249,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         c = fits.Card("abc", True)
         assert str(c) == "ABC     =                    T                                                  "
 
-        c = fits.Card.fromstring('abc     = F')
+        c = fits.Card.fromstring('ABC     = F')
         assert c.value == False
 
     def test_long_integer_value_card(self):
@@ -304,7 +318,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_commentary_cards(self):
         # commentary cards
-        c = fits.Card("history",
+        c = fits.Card("HISTORY",
                       "A commentary card's value has no quotes around it.")
         assert str(c) == "HISTORY A commentary card's value has no quotes around it.                      "
         c = fits.Card("comment",
@@ -320,13 +334,13 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_commentary_card_will_not_parse_numerical_value(self):
         # commentary card will not parse the numerical value
-        c = fits.Card.fromstring("history  (1, 2)")
+        c = fits.Card.fromstring("HISTORY  (1, 2)")
         assert str(c) == "HISTORY  (1, 2)                                                                 "
 
     def test_equal_sign_after_column8(self):
         # equal sign after column 8 of a commentary card will be part ofthe
         # string value
-        c = fits.Card.fromstring("history =   (1, 2)")
+        c = fits.Card.fromstring("HISTORY =   (1, 2)")
         assert str(c) == "HISTORY =   (1, 2)                                                              "
 
     def test_blank_keyword(self):
@@ -339,19 +353,19 @@ class TestHeaderFunctions(PyfitsTestCase):
     def test_specify_undefined_value(self):
         # this is how to specify an undefined value
         c = fits.Card("undef", fits.card.UNDEFINED)
-        assert str(c) == "UNDEF   =                                                                       "
+        assert str(c) == _pad("UNDEF   =")
 
     def test_complex_number_using_string_input(self):
         # complex number using string input
-        c = fits.Card.fromstring('abc     = (8, 9)')
-        assert str(c) == "ABC     =               (8, 9)                                                  "
+        c = fits.Card.fromstring('ABC     = (8, 9)')
+        assert str(c) == _pad("ABC     = (8, 9)")
 
     def test_fixable_non_standard_fits_card(self):
         # fixable non-standard FITS card will keep the original format
         c = fits.Card.fromstring('abc     = +  2.1   e + 12')
         assert c.value == 2100000000000.0
         with CaptureStdio():
-            assert str(c) == "ABC     =             +2.1E+12                                                  "
+            assert str(c) == _pad("ABC     =             +2.1E+12")
 
     def test_fixable_non_fsc(self):
         # fixable non-FSC: if the card is not parsable, it's value will be
@@ -364,50 +378,50 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_undefined_value_using_string_input(self):
         # undefined value using string input
-        c = fits.Card.fromstring('abc     =    ')
-        assert str(c) == "ABC     =                                                                       "
+        c = fits.Card.fromstring('ABC     =    ')
+        assert str(c) == _pad("ABC     =")
 
     def test_mislocated_equal_sign(self):
         # test mislocated "=" sign
-        c = fits.Card.fromstring('xyz= 100')
+        c = fits.Card.fromstring('XYZ= 100')
         assert c.keyword == 'XYZ'
         assert c.value == 100
         with CaptureStdio():
-            assert str(c) == "XYZ     =                  100                                                  "
+            assert str(c) == _pad("XYZ     =                  100")
 
     def test_equal_only_up_to_column_10(self):
         # the test of "=" location is only up to column 10
 
         # This test used to check if PyFITS rewrote this card to a new format,
         # something like "HISTO   = '=   (1, 2)".  But since ticket
-        # https://trac.assembla.com/pyfits/ticket/109 if the format is
+        # https://aeon.stsci.edu/ssb/trac/pyfits/ticket/109 if the format is
         # completely wrong we don't make any assumptions and the card should be
         # left alone
         with CaptureStdio():
-            c = fits.Card.fromstring("histo       =   (1, 2)")
-            assert str(c) == _pad("histo       =   (1, 2)")
+            c = fits.Card.fromstring("HISTO       =   (1, 2)")
+            assert str(c) == _pad("HISTO       =   (1, 2)")
 
             # Likewise this card should just be left in its original form and
             # we shouldn't guess how to parse it or rewrite it.
-            c = fits.Card.fromstring("   history          (1, 2)")
-            assert str(c) == _pad("   history          (1, 2)")
+            c = fits.Card.fromstring("   HISTORY          (1, 2)")
+            assert str(c) == _pad("   HISTORY          (1, 2)")
 
     def test_verify_invalid_equal_sign(self):
         # verification
-        c = fits.Card.fromstring('abc= a6')
+        c = fits.Card.fromstring('ABC= a6')
         with catch_warnings(record=True) as w:
             with CaptureStdio():
                 c.verify()
             err_text1 = ("Card 'ABC' is not FITS standard (equal sign not at "
                          "column 8)")
             err_text2 = ("Card 'ABC' is not FITS standard (invalid value "
-                         "string: a6")
+                         "string: 'a6'")
             assert len(w) == 4
             assert err_text1 in str(w[1].message)
             assert err_text2 in str(w[2].message)
 
     def test_fix_invalid_equal_sign(self):
-        c = fits.Card.fromstring('abc= a6')
+        c = fits.Card.fromstring('ABC= a6')
         with catch_warnings(record=True) as w:
             with CaptureStdio():
                 c.verify('fix')
@@ -440,13 +454,13 @@ class TestHeaderFunctions(PyfitsTestCase):
 
         h2 = fits.Header()
         with catch_warnings(record=True) as w:
-            h2['TEST'] = u'abcdefg' * 30
+            h2['TEST'] = u('abcdefg') * 30
             assert len(w) == 0
 
         assert str(h1) == str(h2)
 
     def test_long_string_repr(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/193
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/193
 
         Ensure that the __repr__() for cards represented with CONTINUE cards is
         split across multiple lines (broken at each *physical* card).
@@ -468,7 +482,7 @@ class TestHeaderFunctions(PyfitsTestCase):
              str(fits.Card('TEST3', 'Regular value', 'Regular comment'))]
 
     def test_blank_keyword_long_value(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/194
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/194
 
         Test that a blank keyword ('') can be assigned a too-long value that is
         continued across multiple cards with blank keywords, just like COMMENT
@@ -521,14 +535,15 @@ class TestHeaderFunctions(PyfitsTestCase):
             _pad("abc     = 'longstring''s testing  &  ' / comments in line 1") +
             _pad("continue  'continue with long string but without the ampersand at the end' /") +
             _pad("continue  'continue must have string value (with quotes)' / comments with ''. "))
-        assert (str(c) ==
-            "ABC     = 'longstring''s testing  continue with long string but without the &'  "
-            "CONTINUE  'ampersand at the endcontinue must have string value (with quotes)&'  "
-            "CONTINUE  '&' / comments in line 1 comments with ''.                            ")
+        with CaptureStdio():
+            assert (str(c) ==
+                "ABC     = 'longstring''s testing  continue with long string but without the &'  "
+                "CONTINUE  'ampersand at the endcontinue must have string value (with quotes)&'  "
+                "CONTINUE  '&' / comments in line 1 comments with ''.                            ")
 
     def test_continue_card_with_equals_in_value(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/117
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/117
         """
 
         c = fits.Card.fromstring(
@@ -631,8 +646,9 @@ class TestHeaderFunctions(PyfitsTestCase):
         # Test the exception message
         try:
             header['NAXIS']
-        except KeyError, e:
-            assert e.args[0] == "Keyword 'NAXIS' not found."
+        except KeyError:
+            exc = sys.exc_info()[1]
+            assert exc.args[0] == "Keyword 'NAXIS' not found."
 
     def test_hierarch_card_lookup(self):
         header = fits.Header()
@@ -640,13 +656,13 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert 'abcdefghi' in header
         assert header['abcdefghi'] == 10
         # This used to be assert_false, but per ticket
-        # https://trac.assembla.com/pyfits/ticket/155 hierarch keywords
+        # https://aeon.stsci.edu/ssb/trac/pyfits/ticket/155 hierarch keywords
         # should be treated case-insensitively when performing lookups
         assert 'ABCDEFGHI' in header
 
     def test_hierarch_create_and_update(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/158
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/158
 
         Tests several additional use cases for working with HIERARCH cards.
         """
@@ -707,7 +723,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_short_hierarch_create_and_update(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/158
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/158
 
         Tests several additional use cases for working with HIERARCH cards,
         specifically where the keyword is fewer than 8 characters, but contains
@@ -879,6 +895,17 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert newheader[0] == 0
         assert newheader[1] == 2
 
+    def test_wildcard_with_hyphen(self):
+        """
+        Regression test for issue where wildcards did not work on keywords
+        containing hyphens.
+        """
+
+        header = fits.Header([('DATE', 1), ('DATE-OBS', 2), ('DATE-FOO', 3)])
+        assert len(header['DATE*']) == 3
+        assert len(header['DATE?*']) == 2
+        assert len(header['DATE-*']) == 2
+
     def test_wildcard_slice_assignment(self):
         """Test assigning to a header slice selected via wildcard matching."""
 
@@ -958,21 +985,21 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_header_items(self):
         header = fits.Header([('A', 'B'), ('C', 'D')])
-        assert header.items() == list(header.iteritems())
+        assert list(header.items()) == list(iteritems(header))
 
     def test_header_iterkeys(self):
         header = fits.Header([('A', 'B'), ('C', 'D')])
-        for a, b in itertools.izip(header.iterkeys(), header):
+        for a, b in zip(iterkeys(header), header):
             assert a == b
 
     def test_header_itervalues(self):
         header = fits.Header([('A', 'B'), ('C', 'D')])
-        for a, b in itertools.izip(header.itervalues(), ['B', 'D']):
+        for a, b in zip(itervalues(header), ['B', 'D']):
             assert a == b
 
     def test_header_keys(self):
         hdul = fits.open(self.data('arange.fits'))
-        assert (hdul[0].header.keys() ==
+        assert (list(hdul[0].header.keys()) ==
                 ['SIMPLE', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2', 'NAXIS3',
                  'EXTEND'])
 
@@ -983,17 +1010,17 @@ class TestHeaderFunctions(PyfitsTestCase):
         last = header.pop()
         assert last == 'H'
         assert len(header) == 3
-        assert header.keys() == ['A', 'C', 'E']
+        assert list(header.keys()) == ['A', 'C', 'E']
 
         mid = header.pop(1)
         assert mid == 'D'
         assert len(header) == 2
-        assert header.keys() == ['A', 'E']
+        assert list(header.keys()) == ['A', 'E']
 
         first = header.pop(0)
         assert first == 'B'
         assert len(header) == 1
-        assert header.keys() == ['E']
+        assert list(header.keys()) == ['E']
 
         assert_raises(IndexError, header.pop, 42)
 
@@ -1005,17 +1032,17 @@ class TestHeaderFunctions(PyfitsTestCase):
         last = header.pop('G')
         assert last == 'H'
         assert len(header) == 3
-        assert header.keys() == ['A', 'C', 'E']
+        assert list(header.keys()) == ['A', 'C', 'E']
 
         mid = header.pop('C')
         assert mid == 'D'
         assert len(header) == 2
-        assert header.keys() == ['A', 'E']
+        assert list(header.keys()) == ['A', 'E']
 
         first = header.pop('A')
         assert first == 'B'
         assert len(header) == 1
-        assert header.keys() == ['E']
+        assert list(header.keys()) == ['E']
 
         default = header.pop('X', 'Y')
         assert default == 'Y'
@@ -1108,7 +1135,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         # operation when the header is coming from another HDU
         hdu.header.extend(hdu2.header, strip=False)
         assert len(hdu.header) == 11
-        assert hdu.header.keys()[5] == 'XTENSION'
+        assert list(hdu.header.keys())[5] == 'XTENSION'
         assert hdu.header[-1] == 'some val'
         assert ('MYKEY', 1) in hdu.header
 
@@ -1221,7 +1248,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         header = fits.Header([('A', 'B'), ('C', 'D')])
         header.append('E')
         assert len(header) == 3
-        assert header.keys()[-1] == 'E'
+        assert list(header.keys())[-1] == 'E'
         assert header[-1] == ''
         assert header.comments['E'] == ''
 
@@ -1231,7 +1258,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         header.append('')
         assert len(header) == 4
 
-        assert header.keys()[-1] == ''
+        assert list(header.keys())[-1] == ''
         assert header[''] == ''
         assert header.comments[''] == ''
 
@@ -1336,7 +1363,7 @@ class TestHeaderFunctions(PyfitsTestCase):
     def test_commentary_slicing(self):
         header = fits.Header()
 
-        indices = range(5)
+        indices = list(range(5))
 
         for idx in indices:
             header['HISTORY'] = idx
@@ -1412,7 +1439,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         header['HISTORY'] = longval
 
         assert len(header) == 7
-        assert header.keys()[2] == 'FRED'
+        assert list(header.keys())[2] == 'FRED'
         assert str(header.cards[3]) == 'HISTORY ' + longval[:72]
         assert str(header.cards[4]).rstrip() == 'HISTORY ' + longval[72:]
 
@@ -1422,7 +1449,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert str(header.cards[2]).rstrip() == 'HISTORY ' + longval[72:]
 
     def test_header_fromtextfile(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/122
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/122
 
         Manually write a text file containing some header cards ending with
         newlines and ensure that fromtextfile can read them back in.
@@ -1440,7 +1467,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert header == header2
 
     def test_header_fromtextfile_with_end_card(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/154
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/154
 
         Make sure that when a Header is read from a text file that the END card
         is ignored.
@@ -1463,7 +1490,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_append_end_card(self):
         """
-        Regression test 2 for https://trac.assembla.com/pyfits/ticket/154
+        Regression test 2 for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/154
 
         Manually adding an END card to a header should simply result in a
         ValueError (as was the case in PyFITS 3.0 and earlier).
@@ -1482,7 +1509,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_invalid_end_cards(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/217
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/217
 
         This tests the case where the END card looks like a normal card like
         'END = ' and other similar oddities.  As long as a card starts with END
@@ -1551,7 +1578,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_unnecessary_move(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/125
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/125
 
         Ensures that a header is not modified when setting the position of a
         keyword that's already in its correct position.
@@ -1560,37 +1587,37 @@ class TestHeaderFunctions(PyfitsTestCase):
         header = fits.Header([('A', 'B'), ('B', 'C'), ('C', 'D')])
 
         header.set('B', before=2)
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
         header.set('B', after=0)
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
         header.set('B', before='C')
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
         header.set('B', after='A')
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
         header.set('B', before=2)
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
         # 123 is well past the end, and C is already at the end, so it's in the
         # right place already
         header.set('C', before=123)
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
         header.set('C', after=123)
-        assert header.keys() == ['A', 'B', 'C']
+        assert list(header.keys()) == ['A', 'B', 'C']
         assert not header._modified
 
     def test_invalid_float_cards(self):
-        """Regression test for https://trac.assembla.com/pyfits/ticket/137"""
+        """Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/137"""
 
         # Create a header containing two of the problematic cards in the test
         # case where this came up:
@@ -1633,7 +1660,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_invalid_float_cards2(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/140
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/140
         """
 
         # The example for this test requires creating a FITS file containing a
@@ -1658,13 +1685,13 @@ class TestHeaderFunctions(PyfitsTestCase):
             # should be output as separate warning messages, but that's
             # something to think about...
             msg = str(w[3].message)
-            assert '(invalid value string: 5.0022221e-07)' in msg
+            assert "(invalid value string: '5.0022221e-07')" in msg
 
     def test_leading_zeros(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/137, part 2
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/137, part 2
 
-        Ticket https://trac.assembla.com/pyfits/ticket/137 also showed that in
+        Ticket https://aeon.stsci.edu/ssb/trac/pyfits/ticket/137 also showed that in
         float values like 0.001 the leading zero was unnecessarily being
         stripped off when rewriting the header.  Though leading zeros should be
         removed from integer values to prevent misinterpretation as octal by
@@ -1684,7 +1711,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_assign_boolean(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/123
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/123
 
         Tests assigning Python and Numpy boolean values to keyword values.
         """
@@ -1717,7 +1744,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_header_method_keyword_normalization(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/149
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/149
 
         Basically ensures that all public Header methods are case-insensitive
         w.r.t. keywords.
@@ -1726,7 +1753,7 @@ class TestHeaderFunctions(PyfitsTestCase):
         """
 
         h = fits.Header([('abC', 1), ('Def', 2), ('GeH', 3)])
-        assert h.keys() == ['ABC', 'DEF', 'GEH']
+        assert list(h.keys()) == ['ABC', 'DEF', 'GEH']
         assert 'abc' in h
         assert 'dEf' in h
 
@@ -1742,14 +1769,14 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert len(h) == 3
 
         del h['gEh']
-        assert h.keys() == ['ABC', 'DEF']
+        assert list(h.keys()) == ['ABC', 'DEF']
         assert len(h) == 2
         assert h.get('def') == 2
 
         h.set('Abc', 3)
         assert h['ABC'] == 3
         h.set('gEh', 3, before='Abc')
-        assert h.keys() == ['GEH', 'ABC', 'DEF']
+        assert list(h.keys()) == ['GEH', 'ABC', 'DEF']
 
         assert h.pop('abC') == 3
         assert len(h) == 2
@@ -1758,11 +1785,11 @@ class TestHeaderFunctions(PyfitsTestCase):
         assert len(h) == 2
         assert h.setdefault('aBc', 1) == 1
         assert len(h) == 3
-        assert h.keys() == ['GEH', 'DEF', 'ABC']
+        assert list(h.keys()) == ['GEH', 'DEF', 'ABC']
 
         h.update({'GeH': 1, 'iJk': 4})
         assert len(h) == 4
-        assert h.keys() == ['GEH', 'DEF', 'ABC', 'IJK']
+        assert list(h.keys()) == ['GEH', 'DEF', 'ABC', 'IJK']
         assert h['GEH'] == 1
 
         assert h.count('ijk') == 1
@@ -1770,11 +1797,11 @@ class TestHeaderFunctions(PyfitsTestCase):
 
         h.remove('Def')
         assert len(h) == 3
-        assert h.keys() == ['GEH', 'ABC', 'IJK']
+        assert list(h.keys()) == ['GEH', 'ABC', 'IJK']
 
     def test_end_in_comment(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/142
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/142
 
         Tests a case where the comment of a card ends with END, and is followed
         by several blank cards.
@@ -1814,7 +1841,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_assign_unicode(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/134
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/134
 
         Assigning a unicode literal as a header value should not fail silently.
         If the value can be converted to ASCII then it should just work.
@@ -1823,37 +1850,37 @@ class TestHeaderFunctions(PyfitsTestCase):
         Also tests unicode for keywords and comments.
         """
 
-        erikku = u'\u30a8\u30ea\u30c3\u30af'
+        erikku = u('\u30a8\u30ea\u30c3\u30af')
 
         def assign(keyword, val):
             h[keyword] = val
 
         h = fits.Header()
-        h[u'FOO'] = 'BAR'
+        h[u('FOO')] = 'BAR'
         assert 'FOO' in h
         assert h['FOO'] == 'BAR'
-        assert h[u'FOO'] == 'BAR'
+        assert h[u('FOO')] == 'BAR'
         assert repr(h) == _pad("FOO     = 'BAR     '")
         assert_raises(ValueError, assign, erikku, 'BAR')
 
-        h['FOO'] = u'BAZ'
-        assert h[u'FOO'] == 'BAZ'
-        assert h[u'FOO'] == u'BAZ'
+        h['FOO'] = u('BAZ')
+        assert h[u('FOO')] == 'BAZ'
+        assert h[u('FOO')] == u('BAZ')
         assert repr(h) == _pad("FOO     = 'BAZ     '")
         assert_raises(ValueError, assign, 'FOO', erikku)
 
-        h['FOO'] = ('BAR', u'BAZ')
+        h['FOO'] = ('BAR', u('BAZ'))
         assert h['FOO'] == 'BAR'
-        assert h['FOO'] == u'BAR'
+        assert h['FOO'] == u('BAR')
         assert h.comments['FOO'] == 'BAZ'
-        assert h.comments['FOO'] == u'BAZ'
+        assert h.comments['FOO'] == u('BAZ')
         assert repr(h) == _pad("FOO     = 'BAR     '           / BAZ")
 
-        h['FOO'] = (u'BAR', u'BAZ')
+        h['FOO'] = (u('BAR'), u('BAZ'))
         assert h['FOO'] == 'BAR'
-        assert h['FOO'] == u'BAR'
+        assert h['FOO'] == u('BAR')
         assert h.comments['FOO'] == 'BAZ'
-        assert h.comments['FOO'] == u'BAZ'
+        assert h.comments['FOO'] == u('BAZ')
         assert repr(h) == _pad("FOO     = 'BAR     '           / BAZ")
 
         assert_raises(ValueError, assign, 'FOO', ('BAR', erikku))
@@ -1877,14 +1904,13 @@ class TestHeaderFunctions(PyfitsTestCase):
 
         h = fits.Header()
         if PY3:
-            assert_raises(ValueError, h.set, 'TEST',
-                          bytes('Hello', encoding='ascii'))
+            assert_raises(ValueError, h.set, 'TEST', b('Hello'))
         else:
             assert_raises(ValueError, h.set, 'TEST', str('ñ'))
 
     def test_header_strip_whitespace(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/146, and
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/146, and
         for the solution that is optional stripping of whitespace from the end
         of a header value.
 
@@ -1917,7 +1943,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_keep_duplicate_history_in_orig_header(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/156
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/156
 
         When creating a new HDU from an existing Header read from an existing
         FITS file, if the origianl header contains duplicate HISTORY values
@@ -1950,7 +1976,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_invalid_keyword_cards(self):
         """
-        Test for https://trac.assembla.com/pyfits/ticket/109
+        Test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/109
 
         Allow opening files with headers containing invalid keywords.
         """
@@ -1992,7 +2018,7 @@ class TestHeaderFunctions(PyfitsTestCase):
 
     def test_fix_hierarch_with_invalid_value(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/172
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/172
 
         Ensures that when fixing a hierarch card it remains a hierarch card.
         """
@@ -2300,7 +2326,7 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
         string of the first card with that keyword.
 
         This test was changed to reflect the requirement in ticket
-        https://trac.assembla.com/pyfits/ticket/184--previously it required
+        https://aeon.stsci.edu/ssb/trac/pyfits/ticket/184--previously it required
         _test_header['DP1'] to return the parsed float value.
         """
 
@@ -2328,8 +2354,9 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
         # Test the exception message
         try:
             self._test_header['DP1.AXIS.3']
-        except KeyError, e:
-            assert e.args[0] == "Keyword 'DP1.AXIS.3' not found."
+        except KeyError:
+            exc = sys.exc_info()[1]
+            assert exc.args[0] == "Keyword 'DP1.AXIS.3' not found."
 
     def test_update_rvkc(self):
         """A RVKC can be updated either via index or keyword access."""
@@ -2381,9 +2408,18 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
 
         del self._test_header['DP1.AXIS.1']
         assert len(self._test_header) == 7
-        assert self._test_header.keys()[0] == 'DP1.NAXIS'
+        assert list(self._test_header.keys())[0] == 'DP1.NAXIS'
         assert self._test_header[0] == 2
-        assert self._test_header.keys()[1] == 'DP1.AXIS.2'
+        assert list(self._test_header.keys())[1] == 'DP1.AXIS.2'
+        assert self._test_header[1] == 2
+
+        # Perform a subsequent delete to make sure all the index mappings were
+        # updated
+        del self._test_header['DP1.AXIS.2']
+        assert len(self._test_header) == 6
+        assert list(self._test_header.keys())[0] == 'DP1.NAXIS'
+        assert self._test_header[0] == 2
+        assert list(self._test_header.keys())[1] == 'DP1.NAUX'
         assert self._test_header[1] == 2
 
         # Perform a subsequent delete to make sure all the index mappings were
@@ -2435,9 +2471,9 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
 
         del self._test_header['DP1.A*...']
         assert len(self._test_header) == 2
-        assert self._test_header.keys()[0] == 'DP1.NAXIS'
+        assert list(self._test_header.keys())[0] == 'DP1.NAXIS'
         assert self._test_header[0] == 2
-        assert self._test_header.keys()[1] == 'DP1.NAUX'
+        assert list(self._test_header.keys())[1] == 'DP1.NAUX'
         assert self._test_header[1] == 2
 
     def test_successive_pattern_matching(self):
@@ -2470,7 +2506,7 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
         """
 
         cl = self._test_header['DP1.AXIS.*']
-        assert cl.keys() == ['DP1.AXIS.1', 'DP1.AXIS.2']
+        assert list(cl.keys()) == ['DP1.AXIS.1', 'DP1.AXIS.2']
 
     def test_rvkc_in_cardlist_values(self):
         """
@@ -2479,7 +2515,7 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
         """
 
         cl = self._test_header['DP1.AXIS.*']
-        assert cl.values() == [1.0, 2.0]
+        assert list(cl.values()) == [1.0, 2.0]
 
     def test_rvkc_value_attribute(self):
         """
@@ -2493,7 +2529,7 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
 
     def test_overly_permissive_parsing(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/183
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/183
 
         Ensures that cards with standard commentary keywords are never treated
         as RVKCs.  Also ensures that cards not stricly matching the RVKC
@@ -2529,7 +2565,7 @@ class TestRecordValuedKeywordCards(PyfitsTestCase):
 
     def test_overly_aggressive_rvkc_lookup(self):
         """
-        Regression test for https://trac.assembla.com/pyfits/ticket/184
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/184
 
         Ensures that looking up a RVKC by keyword only (without the
         field-specifier) in a header returns the full string value of that card
